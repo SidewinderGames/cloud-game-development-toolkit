@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and fill in. Most values are set as Spacelift
+# environment variables on the admin stack itself (in the Spacelift UI) when
+# this stack runs in Spacelift. Local applies need them here.
+
+aws_runner_role_arn = "arn:aws:iam::622709063820:role/sidewinder-spacelift-runner"
+
+# The two stacks pick up these values via TF_VAR_* environment variables on each child stack.
+aws_region                  = "us-east-1"
+route53_subdomain_zone_name = "studio.sidewinder.dev"
+
+allowed_p4_cidrs              = "[\"203.0.113.10/32\", \"198.51.100.42/32\"]"
+github_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:622709063820:secret:sidewinder/ghcr-credentials-XXXXXX"
+agent_ami_id                  = "ami-XXXXXXXXXXXXXXXXX"
