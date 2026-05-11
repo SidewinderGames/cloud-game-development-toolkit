@@ -1,27 +1,27 @@
 ########################################
-# GENERAL CONFIGURATION
+# GENERAL
 ########################################
+
 variable "name" {
   type        = string
-  description = "The name attached to Unreal Engine Horde module resources."
+  description = "Name attached to Unreal Engine Horde module resources."
   default     = "unreal-horde"
 
   validation {
     condition     = length(var.name) > 1 && length(var.name) <= 50
-    error_message = "The defined 'name' has too many characters (${length(var.name)}). This can cause deployment failures for AWS resources with smaller character limits. Please reduce the character count and try again."
+    error_message = "name length must be between 2 and 50 characters."
   }
 }
 
 variable "project_prefix" {
   type        = string
-  description = "The project prefix for this workload. This is appeneded to the beginning of most resource names."
+  description = "Project prefix appended to most resource names."
   default     = "cgd"
-
 }
 
 variable "environment" {
   type        = string
-  description = "The current environment (e.g. Development, Staging, Production, etc.). This will tag ressources and set ASPNETCORE_ENVIRONMENT variable."
+  description = "Environment name (Development, Staging, Production). Sets ASPNETCORE_ENVIRONMENT and tags resources."
   default     = "Development"
 }
 
@@ -37,7 +37,7 @@ variable "tags" {
 
 variable "debug" {
   type        = bool
-  description = "Set this flag to enable ECS execute permissions on the Unreal Horde container and force new service deployments on Terraform apply."
+  description = "Enable debug helpers (forces redeploys, opens execute channels)."
   default     = false
 }
 
@@ -47,72 +47,86 @@ variable "debug" {
 
 variable "vpc_id" {
   type        = string
-  description = "The ID of the existing VPC you would like to deploy Unreal Horde into."
-}
-
-########################################
-# ECS
-########################################
-
-variable "image" {
-  type        = string
-  description = "The Horde Server image to use in the ECS service."
-  default     = "ghcr.io/epicgames/horde-server:latest-bundled"
-}
-
-variable "cluster_name" {
-  type        = string
-  description = "The name of the cluster to deploy the Unreal Horde into. Defaults to null and a cluster will be created."
-  default     = null
+  description = "VPC ID where Horde resources are deployed."
 }
 
 variable "unreal_horde_service_subnets" {
   type        = list(string)
-  description = "A list of subnets to deploy the Unreal Horde service into. Private subnets are recommended."
+  description = "Subnets for the Horde EC2 host. The first subnet pins the host's AZ; the data EBS volume is created in that AZ."
+  validation {
+    condition     = length(var.unreal_horde_service_subnets) >= 1
+    error_message = "At least one service subnet is required for the Horde host."
+  }
 }
 
-# - Container Specs -
+variable "existing_security_groups" {
+  type        = list(string)
+  description = "Existing security group IDs to attach to the Horde host in addition to the module-managed SG."
+  default     = []
+}
 
-variable "container_name" {
+variable "admin_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks allowed to SSH directly to the Horde host. Prefer SSM Session Manager (which needs no inbound rule)."
+  default     = []
+}
+
+########################################
+# HORDE SERVER HOST
+########################################
+
+variable "image" {
   type        = string
-  description = "The name of the Unreal Horde container."
-  default     = "unreal-horde-container"
-  nullable    = false
+  description = "Horde server container image."
+  default     = "ghcr.io/epicgames/horde-server:latest-bundled"
+}
+
+variable "horde_host_instance_type" {
+  type        = string
+  description = "EC2 instance type for the Horde all-in-one host."
+  default     = "t4g.medium"
+}
+
+variable "horde_host_ami_id" {
+  type        = string
+  description = "AMI ID for the Horde host. If null, the most recent Amazon Linux 2023 arm64 AMI is used."
+  default     = null
+}
+
+variable "horde_data_volume_size" {
+  type        = number
+  description = "Size in GiB of the EBS gp3 volume holding Mongo, Redis, and Horde server-side state."
+  default     = 100
+}
+
+variable "mongo_username" {
+  type        = string
+  description = "MongoDB root username. Password is generated and stored in Secrets Manager."
+  default     = "horde"
+}
+
+variable "mongo_max_cache_gb" {
+  type        = string
+  description = "WiredTiger cache size in GiB. Constrain on small hosts to keep Horde + Redis memory headroom."
+  default     = "1.0"
+}
+
+variable "redis_maxmemory" {
+  type        = string
+  description = "Redis maxmemory directive (with units)."
+  default     = "512mb"
 }
 
 variable "container_api_port" {
   type        = number
-  description = "The container port for the Unreal Horde web server."
+  description = "Host port for the Horde web server."
   default     = 5000
-  nullable    = false
 }
 
 variable "container_grpc_port" {
   type        = number
-  description = "The container port for the Unreal Horde GRPC channel."
+  description = "Host port for the Horde gRPC channel."
   default     = 5002
-  nullable    = false
-}
-
-variable "container_cpu" {
-  type        = number
-  description = "The CPU allotment for the Unreal Horde container."
-  default     = 1024
-  nullable    = false
-}
-
-variable "container_memory" {
-  type        = number
-  description = "The memory allotment for the Unreal Horde container."
-  default     = 4096
-  nullable    = false
-}
-
-variable "desired_container_count" {
-  type        = number
-  description = "The desired number of containers running Unreal Horde."
-  default     = 1
-  nullable    = false
 }
 
 ########################################
@@ -121,143 +135,157 @@ variable "desired_container_count" {
 
 variable "create_external_alb" {
   type        = bool
-  description = "Set this flag to true to create an external load balancer for Unreal Horde."
-  default     = true
-}
-
-variable "create_internal_alb" {
-  type        = bool
-  description = "Set this flag to true to create an internal load balancer for Unreal Horde."
+  description = "Create the external Application Load Balancer in front of the Horde host."
   default     = true
 }
 
 variable "unreal_horde_external_alb_subnets" {
   type        = list(string)
-  description = "A list of subnets to deploy the Unreal Horde load balancer into. Public subnets are recommended."
+  description = "Subnets for the external Horde ALB. Two subnets in different AZs are required."
+  default     = []
   validation {
-    condition     = var.create_external_alb ? length(var.unreal_horde_external_alb_subnets) > 0 : true
-    error_message = "You must provide subnets for the external ALB."
+    condition     = var.create_external_alb ? length(var.unreal_horde_external_alb_subnets) >= 2 : true
+    error_message = "Provide at least two subnets in different AZs for the external ALB."
   }
-  default = []
-}
-
-variable "unreal_horde_internal_alb_subnets" {
-  type        = list(string)
-  description = "A list of subnets to deploy the Unreal Horde internal load balancer into. Private subnets are recommended."
-  validation {
-    condition     = var.create_internal_alb ? length(var.unreal_horde_internal_alb_subnets) > 0 : true
-    error_message = "You must provide subnets for the internal ALB."
-  }
-  default = []
 }
 
 variable "enable_unreal_horde_alb_access_logs" {
   type        = bool
-  description = "Enables access logging for the Unreal Horde ALB. Defaults to true."
-  default     = true
+  description = "Enable access logging for the Horde ALB."
+  default     = false
 }
 
 variable "unreal_horde_alb_access_logs_bucket" {
   type        = string
-  description = "ID of the S3 bucket for Unreal Horde ALB access log storage. If access logging is enabled and this is null the module creates a bucket."
+  description = "Existing S3 bucket for ALB access logs. If null and logs are enabled, the module creates one."
   default     = null
 }
 
 variable "unreal_horde_alb_access_logs_prefix" {
   type        = string
-  description = "Log prefix for Unreal Horde ALB access logs. If null the project prefix and module name are used."
+  description = "Prefix for Horde ALB access logs."
   default     = null
 }
 
 variable "enable_unreal_horde_alb_deletion_protection" {
   type        = bool
-  description = "Enables deletion protection for the Unreal Horde ALB. Defaults to true."
+  description = "Enable deletion protection on the Horde ALB."
   default     = false
-}
-
-variable "existing_security_groups" {
-  type        = list(string)
-  description = "A list of existing security group IDs to attach to the Unreal Horde load balancer."
-  default     = []
 }
 
 variable "certificate_arn" {
   type        = string
-  description = "The TLS certificate ARN for the Unreal Horde load balancer."
+  description = "ACM certificate ARN for the Horde HTTPS listener."
 }
 
-# - Logging -
-variable "unreal_horde_cloudwatch_log_retention_in_days" {
-  type        = string
-  description = "The log retention in days of the cloudwatch log group for Unreal Horde."
-  default     = 365
-}
+########################################
+# IAM
+########################################
 
-# - Security and Permissions -
 variable "custom_unreal_horde_role" {
   type        = string
-  description = "ARN of the custom IAM Role you wish to use with Unreal Horde."
+  description = "ARN of a custom IAM role to use for the Horde host (overrides the module-managed role)."
   default     = null
 }
 
 variable "create_unreal_horde_default_role" {
   type        = bool
-  description = "Optional creation of Unreal Horde default IAM Role. Default is set to true."
+  description = "Create the module-managed Horde host IAM role."
   default     = true
 }
 
 variable "create_unreal_horde_default_policy" {
   type        = bool
-  description = "Optional creation of Unreal Horde default IAM Policy. Default is set to true."
+  description = "Attach the default SSM policy to the Horde host role."
   default     = true
-}
-
-variable "github_credentials_secret_arn" {
-  type        = string
-  description = "A secret containing the Github username and password with permissions to the EpicGames organization."
-  default     = null
 }
 
 variable "create_unreal_horde_recycle_policy" {
   type        = bool
-  description = "Optional creation of Unreal Horde IAM Policy allowing usage of the AwsReuse/AwsRecycle fleet manager."
-  default     = false
+  description = "Attach permissions for Horde's AwsAsg fleet manager to drive agent ASG scaling."
+  default     = true
 
   validation {
     condition     = var.create_unreal_horde_recycle_policy == false || var.create_unreal_horde_default_role == true
-    error_message = "Cannot create recycle policy if not creating default role."
+    error_message = "Cannot create recycle policy without the default role."
   }
 }
 
-######################
-# OIDC CONFIG
-######################
+variable "github_credentials_secret_arn" {
+  type        = string
+  description = "Secrets Manager secret containing GitHub credentials with read:packages on the EpicGames org. Required to pull the Horde server image from ghcr.io."
+  default     = null
+}
+
+########################################
+# STORAGE (S3)
+########################################
+
+variable "create_s3_storage_bucket" {
+  type        = bool
+  description = "Create an S3 bucket used as Horde's artifact and log storage backend."
+  default     = true
+}
+
+variable "s3_force_destroy" {
+  type        = bool
+  description = "Allow Terraform to destroy the S3 storage bucket even if it has objects. Set true only in non-production."
+  default     = false
+}
+
+variable "s3_artifact_transition_ia_days" {
+  type        = number
+  description = "Days after which artifacts transition to S3 Standard-IA."
+  default     = 7
+}
+
+variable "s3_artifact_transition_glacier_days" {
+  type        = number
+  description = "Days after which artifacts transition to Glacier Instant Retrieval."
+  default     = 30
+}
+
+variable "s3_artifact_expiration_days" {
+  type        = number
+  description = "Days after which artifacts are permanently expired."
+  default     = 90
+}
+
+variable "s3_log_expiration_days" {
+  type        = number
+  description = "Days after which Horde logs are permanently expired."
+  default     = 30
+}
+
+########################################
+# PERFORCE WIRING
+########################################
 
 variable "p4_port" {
   type        = string
-  description = "The Perforce server to connect to."
+  description = "Perforce server URL Horde should connect to (e.g. ssl:p4.studio.example.com:1666)."
   default     = null
 }
 
 variable "p4_super_user_username_secret_arn" {
   type        = string
-  description = "Optionally provide the ARN of an AWS Secret for the p4d super user username."
+  description = "Secrets Manager ARN for the p4d super-user username Horde uses as its service account."
   default     = null
 
   validation {
     condition     = var.p4_super_user_username_secret_arn == null || var.p4_port != null
-    error_message = "p4_super_user_username_secret_arn cannot be passed unless p4_port is also passed."
+    error_message = "Set p4_port when providing p4_super_user_username_secret_arn."
   }
 }
 
 variable "p4_super_user_password_secret_arn" {
   type        = string
-  description = "Optionally provide the ARN of an AWS Secret for the p4d super user password."
+  description = "Secrets Manager ARN for the p4d super-user password Horde uses as its service account."
   default     = null
 
   validation {
     condition     = var.p4_super_user_password_secret_arn == null || var.p4_port != null
-    error_message = "p4_super_user_password_secret_arn cannot be passed unless p4_port is also passed."
+    error_message = "Set p4_port when providing p4_super_user_password_secret_arn."
   }
 
   validation {
@@ -266,247 +294,124 @@ variable "p4_super_user_password_secret_arn" {
   }
 }
 
-######################
-# OIDC CONFIG
-######################
+########################################
+# AUTH (OIDC)
+########################################
 
 variable "auth_method" {
   type        = string
-  description = "The authentication method for the Horde server."
+  description = "Authentication method for the Horde server."
   default     = null
   validation {
     condition     = var.auth_method == null || contains(["Anonymous", "Okta", "OpenIdConnect", "Horde"], var.auth_method)
-    error_message = "Invalid authentication method. Must be one of: Anonymous, Okta, OpenIdConnect, Horde"
+    error_message = "Invalid authentication method. Must be one of: Anonymous, Okta, OpenIdConnect, Horde."
   }
 }
 
 variable "oidc_authority" {
-  type        = string
-  description = "The authority for the OIDC authentication provider used."
-  default     = null
+  type    = string
+  default = null
   validation {
     condition     = var.auth_method != null && contains(["Okta", "OpenIdConnect"], var.auth_method) ? var.oidc_authority != null : var.oidc_authority == null
-    error_message = "An OIDC authority must be provided for Okta and OpenIdConnect authentication methods."
+    error_message = "oidc_authority is required for Okta and OpenIdConnect."
   }
+  description = "OIDC authority URL."
 }
 
 variable "oidc_audience" {
-  type        = string
-  description = "The audience used for validating externally issued tokens."
-  default     = null
+  type    = string
+  default = null
   validation {
     condition     = var.auth_method != null && contains(["Okta", "OpenIdConnect"], var.auth_method) ? var.oidc_audience != null : var.oidc_audience == null
-    error_message = "An OIDC audience must be provided for Okta and OpenIdConnect authentication methods."
+    error_message = "oidc_audience is required for Okta and OpenIdConnect."
   }
+  description = "OIDC audience."
 }
 
 variable "oidc_client_id" {
-  type        = string
-  description = "The client ID used for authenticating with the OIDC provider."
-  default     = null
+  type    = string
+  default = null
   validation {
     condition     = var.auth_method != null && contains(["Okta", "OpenIdConnect"], var.auth_method) ? var.oidc_client_id != null : var.oidc_client_id == null
-    error_message = "An OIDC client ID must be provided for Okta and OpenIdConnect authentication methods."
+    error_message = "oidc_client_id is required for Okta and OpenIdConnect."
   }
+  description = "OIDC client ID."
 }
 
 variable "oidc_client_secret" {
-  type        = string
-  description = "The client secret used for authenticating with the OIDC provider."
-  default     = null
+  type    = string
+  default = null
   validation {
     condition     = var.auth_method != null && contains(["Okta", "OpenIdConnect"], var.auth_method) ? var.oidc_client_secret != null : var.oidc_client_secret == null
-    error_message = "An OIDC client secret must be provided for Okta and OpenIdConnect authentication methods."
+    error_message = "oidc_client_secret is required for Okta and OpenIdConnect."
   }
+  description = "OIDC client secret."
 }
 
 variable "oidc_signin_redirect" {
-  type        = string
-  description = "The sign-in redirect URL for the OIDC provider."
-  default     = null
+  type    = string
+  default = null
   validation {
     condition     = var.auth_method != null && contains(["Okta", "OpenIdConnect"], var.auth_method) ? var.oidc_signin_redirect != null : var.oidc_signin_redirect == null
-    error_message = "An OIDC sign-in redirect URL must be provided for Okta and OpenIdConnect authentication methods."
+    error_message = "oidc_signin_redirect is required for Okta and OpenIdConnect."
   }
+  description = "OIDC sign-in redirect URL."
 }
 
 variable "admin_claim_type" {
   type        = string
-  description = "The claim type for administrators."
+  description = "Claim type for administrators."
   default     = null
 }
 
 variable "admin_claim_value" {
   type        = string
-  description = "The claim value for administrators."
+  description = "Claim value for administrators."
   default     = null
 }
 
-######################
-# DOCUMENTDB CONFIG
-######################
+########################################
+# BUILD AGENTS
+########################################
 
-variable "database_connection_string" {
-  type        = string
-  description = "The database connection string that Horde should use."
-  default     = null
-}
-
-variable "docdb_instance_count" {
-  type        = number
-  description = "The number of instances to provision for the Horde DocumentDB cluster."
-  default     = 2
-}
-
-variable "docdb_instance_class" {
-  type        = string
-  description = "The instance class for the Horde DocumentDB cluster."
-  default     = "db.t4g.medium"
-}
-
-variable "docdb_master_username" {
-  type        = string
-  description = "Master username created for DocumentDB cluster."
-  default     = "horde"
-}
-
-variable "docdb_master_password" {
-  type        = string
-  description = "Master password created for DocumentDB cluster."
-  default     = "mustbeeightchars"
-}
-
-variable "docdb_backup_retention_period" {
-  type        = number
-  description = "Number of days to retain backups for DocumentDB cluster."
-  default     = 7
-}
-
-variable "docdb_preferred_backup_window" {
-  type        = string
-  description = "The preferred window for DocumentDB backups to be created."
-  default     = "07:00-09:00"
-}
-
-variable "docdb_skip_final_snapshot" {
-  type        = bool
-  description = "Flag for whether a final snapshot should be created when the cluster is destroyed."
-  default     = true
-}
-
-variable "docdb_storage_encrypted" {
-  type        = bool
-  description = "Configure DocumentDB storage at rest."
-  default     = true
-}
-
-######################
-# ELASTICACHE CONFIG
-######################
-
-variable "elasticache_engine" {
-  description = "The engine to use for ElastiCache (redis or valkey)"
-  type        = string
-  default     = "redis"
-  validation {
-    condition     = contains(["redis", "valkey"], var.elasticache_engine)
-    error_message = "Invalid engine. Must be one of: redis, valkey"
-  }
-}
-
-variable "elasticache_redis_engine_version" {
-  type        = string
-  description = "The version of the Redis engine to use."
-  default     = "7.0"
-}
-variable "elasticache_valkey_engine_version" {
-  type        = string
-  description = "The version of the ElastiCache engine to use."
-  default     = "7.2"
-}
-
-variable "elasticache_redis_parameter_group_name" {
-  type        = string
-  description = "The name of the Redis parameter group to use."
-  default     = "default.redis7"
-}
-variable "elasticache_valkey_parameter_group_name" {
-  type        = string
-  description = "The name of the Valkey parameter group to use."
-  default     = "default.valkey7"
-}
-variable "elasticache_port" {
-  type        = number
-  description = "The port for the ElastiCache cluster."
-  default     = 6379
-}
-variable "elasticache_cluster_count" {
-  type        = number
-  description = "Number of cache cluster to provision in the Elasticache cluster."
-  default     = 2
-}
-
-variable "custom_cache_connection_config" {
-  type        = string
-  description = "The redis-compatible connection configuration that Horde should use."
-  default     = null
-}
-
-variable "elasticache_node_count" {
-  type        = number
-  description = "Number of cache nodes to provision in the Elasticache cluster."
-  default     = 1
-}
-
-variable "elasticache_node_type" {
-  type        = string
-  description = "The type of nodes provisioned in the Elasticache cluster."
-  default     = "cache.t4g.micro"
-}
-
-variable "elasticache_snapshot_retention_limit" {
-  type        = number
-  description = "The number of Elasticache snapshots to retain."
-  default     = 5
-}
-
-######################
-# BUILD AGENT CONFIG
-######################
 variable "agents" {
   type = map(object({
-    ami             = string
-    instance_type   = string
-    horde_pool_name = optional(string)
-    create_asg      = optional(bool, true)
-    block_device_mappings = list(
-      object({
-        device_name = string
-        ebs = object({
-          volume_size = number
-        })
+    ami                                      = string
+    instance_types                           = list(string)
+    horde_pool_name                          = optional(string)
+    create_asg                               = optional(bool, true)
+    on_demand_base_capacity                  = optional(number, 0)
+    on_demand_percentage_above_base_capacity = optional(number, 0)
+    spot_allocation_strategy                 = optional(string, "capacity-optimized")
+    block_device_mappings = list(object({
+      device_name = string
+      ebs = object({
+        volume_size = number
+        volume_type = optional(string, "gp3")
+        iops        = optional(number)
+        throughput  = optional(number)
       })
-    )
+    }))
     min_size = optional(number, 0)
     max_size = optional(number, 1)
   }))
-  description = "Configures autoscaling groups to be used as build agents by Unreal Engine Horde."
+  description = "Map of agent pools. Each entry becomes an ASG using mixed_instances_policy across instance_types. Default behavior is 100% Spot, capacity-optimized."
   default     = {}
 }
 
 variable "agent_dotnet_runtime_version" {
   type        = string
-  description = "The dotnet-runtime-{} package to install (see your engine version's release notes for supported version)"
+  description = "dotnet-runtime version installed on Linux agents (match your engine release notes)."
   default     = "6.0"
 }
 
 variable "fully_qualified_domain_name" {
   type        = string
-  description = "The fully qualified domain name where your Unreal Engine Horde server will be available. This agents will use this to enroll."
+  description = "FQDN where Horde will be reachable. Agents enroll against this."
 }
 
 variable "enable_new_agents_by_default" {
   type        = bool
-  description = "Set this flag to automatically enable new agents that enroll with the Horde Server."
+  description = "Auto-enable agents on first enrollment."
   default     = false
 }

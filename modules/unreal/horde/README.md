@@ -1,18 +1,20 @@
-# Unreal Horde
+# Unreal Horde (Sidewinder all-in-one fork)
 
-[Unreal Engine Horde](https://github.com/EpicGames/UnrealEngine/tree/5.4/Engine/Source/Programs/Horde) is a set of services supporting workflows Epic uses to develop Fortnite, Unreal Engine, and other titles. This module deploys the Unreal Engine Horde server on AWS Elastic Container Service using the image available from the Epic Games Github organization (requires [Epic Games organization membership](https://github.com/EpicGames/Signup)). Unreal Engine Horde relies on a Redis cache and a MongoDB compatible database. This module provides these services by provisioning an [Amazon Elasticache with Redis OSS Compatibility](https://aws.amazon.com/elasticache/redis/) cluster and an [Amazon DocumentDB](https://aws.amazon.com/documentdb/) cluster.
+[Unreal Engine Horde](https://github.com/EpicGames/UnrealEngine/tree/5.4/Engine/Source/Programs/Horde) is a set of services supporting workflows Epic uses to develop Fortnite, Unreal Engine, and other titles.
 
-Check out this video from Unreal Fest 2024 to learn more about the Unreal Horde module:
+This fork of the upstream `modules/unreal/horde` module replaces the managed Amazon DocumentDB cluster and Amazon ElastiCache cluster with self-hosted MongoDB and Redis containers, co-located with the Horde server on a single EC2 instance via Docker Compose. It is intended for small-team / budget-constrained deployments (roughly 5-person studios) where the managed-services bill is the dominant cost driver.
 
-[![Watch the video](https://img.youtube.com/vi/kIP4wsVprYY/0.jpg)](https://www.youtube.com/watch?v=kIP4wsVprYY)
+Key differences from upstream:
 
-## Deployment Architecture
-
-![Unreal Engine Horde Module Architecture](./assets/media/diagrams/unreal-engine-horde-architecture.png)
+- One EC2 instance (Amazon Linux 2023, arm64 by default) runs the Horde server, MongoDB 7, and Redis 7 in three containers via Docker Compose.
+- Horde artifact and log storage is backed by an S3 bucket with an aggressive lifecycle policy (Standard to Standard-IA at 7 days, Glacier IR at 30 days, expiration at 90 days for artifacts and 30 days for logs).
+- Build agents run on an Auto Scaling Group with `mixed_instances_policy`, defaulting to 100% Spot with the `capacity-optimized` allocation strategy.
+- Horde's `AwsAsg` fleet manager drives scale-in / scale-out (configure server-side in the Horde UI after first deployment).
+- The internal ALB is removed; agents reach Horde via the external ALB on HTTPS.
 
 ## Prerequisites
 
-Unreal Engine Horde is only available through the Epic Games Github organization's package registry or the Unreal Engine source code. In order to get access to this software you will need to [join the Epic Games organization](https://github.com/EpicGames/Signup) on Github and accept the Unreal Engine EULA.
+Unreal Engine Horde is only available through the Epic Games Github organization's package registry or the Unreal Engine source code. To use this fork you need to [join the Epic Games organization](https://github.com/EpicGames/Signup) on GitHub, accept the Unreal Engine EULA, and create a Classic PAT with `read:packages` scope. Store the PAT in AWS Secrets Manager as JSON: `{"username":"<gh-handle>","password":"<PAT>"}` and pass the secret ARN as `github_credentials_secret_arn`.
 
 ## Examples
 

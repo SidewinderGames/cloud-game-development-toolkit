@@ -6,7 +6,6 @@ locals {
   }))
 }
 
-# Need to fetch the AMI info to determine the platform
 data "aws_ami" "unreal_horde_agent_ami" {
   for_each = var.agents
 
@@ -24,7 +23,6 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
   description = "Launch template for ${each.key} Unreal Horde Agents"
 
   image_id      = each.value.ami
-  instance_type = each.value.instance_type
   ebs_optimized = true
 
   dynamic "block_device_mappings" {
@@ -32,8 +30,12 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
     content {
       device_name = block_device_mappings.value.device_name
       ebs {
-        volume_size = block_device_mappings.value.ebs.volume_size
-        volume_type = "gp2"
+        volume_size           = block_device_mappings.value.ebs.volume_size
+        volume_type           = try(block_device_mappings.value.ebs.volume_type, "gp3")
+        iops                  = try(block_device_mappings.value.ebs.iops, null)
+        throughput            = try(block_device_mappings.value.ebs.throughput, null)
+        encrypted             = true
+        delete_on_termination = true
       }
     }
   }
@@ -48,7 +50,7 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 1
+    http_put_response_hop_limit = 2
     instance_metadata_tags      = "enabled"
   }
   iam_instance_profile {
@@ -66,25 +68,70 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
       } : {},
     )
   }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = {
+      Name = "${each.key} Horde Agent workspace"
+    }
+  }
 }
 
 resource "aws_autoscaling_group" "unreal_horde_agent_asg" {
   for_each    = { for k, v in var.agents : k => v if v.create_asg }
   name_prefix = "unreal_horde_agents-${each.key}-"
 
-  launch_template {
-    id      = aws_launch_template.unreal_horde_agent_template[each.key].id
-    version = "$Latest"
-  }
-
-  #checkov:skip=CKV_AWS_153: Autoscaling groups should supply tags to launch configurations
-
   vpc_zone_identifier = var.unreal_horde_service_subnets
 
-  min_size = each.value.min_size
-  max_size = each.value.max_size
+  min_size         = each.value.min_size
+  max_size         = each.value.max_size
+  desired_capacity = each.value.min_size
 
-  depends_on = [aws_ecs_service.unreal_horde]
+  capacity_rebalance = true
+
+  mixed_instances_policy {
+    instances_distribution {
+      on_demand_base_capacity                  = each.value.on_demand_base_capacity
+      on_demand_percentage_above_base_capacity = each.value.on_demand_percentage_above_base_capacity
+      spot_allocation_strategy                 = each.value.spot_allocation_strategy
+    }
+
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.unreal_horde_agent_template[each.key].id
+        version            = "$Latest"
+      }
+
+      dynamic "override" {
+        for_each = each.value.instance_types
+        content {
+          instance_type = override.value
+        }
+      }
+    }
+  }
+
+  tag {
+    key                 = "Horde_Autoscale_Pool"
+    value               = each.value.horde_pool_name == null ? each.key : each.value.horde_pool_name
+    propagate_at_launch = false
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${each.key} Horde Agent ASG"
+    propagate_at_launch = false
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0
+      instance_warmup        = 60
+    }
+  }
+
+  depends_on = [aws_instance.horde_host]
 }
 
 data "aws_iam_policy_document" "ec2_trust_relationship" {
@@ -117,7 +164,6 @@ data "aws_iam_policy_document" "horde_agents_s3_policy" {
   }
 }
 
-// This is required for Horde Agents to be able to query their tags (Horde Agent does not yet support reading tags from IMDS).
 data "aws_iam_policy_document" "horde_agents_ec2_policy" {
   count = length(var.agents) > 0 ? 1 : 0
   statement {
@@ -145,10 +191,9 @@ resource "aws_iam_policy" "horde_agents_ec2_policy" {
   policy      = data.aws_iam_policy_document.horde_agents_ec2_policy[0].json
 }
 
-# Instance Role
 resource "aws_iam_role" "unreal_horde_agent_default_role" {
   count              = length(var.agents) > 0 ? 1 : 0
-  name               = "unreal-horde-agent-default-instance-role"
+  name               = "${var.project_prefix}-horde-agent-instance-role"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust_relationship[0].json
 
   tags = local.tags
@@ -172,10 +217,9 @@ resource "aws_iam_role_policy_attachment" "unreal_horde_agents_ec2_policy" {
   role       = aws_iam_role.unreal_horde_agent_default_role[0].name
 }
 
-# Instance Profile
 resource "aws_iam_instance_profile" "unreal_horde_agent_instance_profile" {
   count = length(var.agents) > 0 ? 1 : 0
-  name  = "unreal-horde-agent-instance-profile"
+  name  = "${var.project_prefix}-horde-agent-instance-profile"
   role  = aws_iam_role.unreal_horde_agent_default_role[0].name
 }
 
@@ -188,7 +232,7 @@ resource "random_string" "unreal_horde_ansible_playbooks_bucket_suffix" {
 
 resource "aws_s3_bucket" "ansible_playbooks" {
   count  = length(var.agents) > 0 ? 1 : 0
-  bucket = "unreal-horde-ansible-playbooks-${random_string.unreal_horde_ansible_playbooks_bucket_suffix[0].id}"
+  bucket = "${var.project_prefix}-horde-ansible-playbooks-${random_string.unreal_horde_ansible_playbooks_bucket_suffix[0].id}"
 
   #checkov:skip=CKV_AWS_144: Cross-region replication not necessary
   #checkov:skip=CKV_AWS_145: KMS encryption with CMK not currently supported
@@ -201,12 +245,10 @@ resource "aws_s3_bucket" "ansible_playbooks" {
   tags                = local.tags
   object_lock_enabled = true
   force_destroy       = true
-
 }
 
 resource "aws_s3_bucket_versioning" "ansible_playbooks_versioning" {
-  count = length(var.agents) > 0 ? 1 : 0
-
+  count  = length(var.agents) > 0 ? 1 : 0
   bucket = aws_s3_bucket.ansible_playbooks[0].id
   versioning_configuration {
     status = "Enabled"
@@ -216,9 +258,7 @@ resource "aws_s3_bucket_versioning" "ansible_playbooks_versioning" {
 resource "aws_s3_bucket_public_access_block" "ansible_playbooks_bucket_public_block" {
   count = length(var.agents) > 0 ? 1 : 0
 
-  depends_on = [
-    aws_s3_bucket.ansible_playbooks[0]
-  ]
+  depends_on = [aws_s3_bucket.ansible_playbooks[0]]
   bucket                  = aws_s3_bucket.ansible_playbooks[0].id
   block_public_acls       = true
   block_public_policy     = true
@@ -247,14 +287,14 @@ resource "aws_s3_object" "unreal_horde_agent_service" {
 resource "aws_ssm_document" "ansible_run_document" {
   count         = length(var.agents) > 0 ? 1 : 0
   document_type = "Command"
-  name          = "AnsibleRun"
+  name          = "${var.project_prefix}-AnsibleRun"
   content       = file("${path.module}/config/ssm/AnsibleRunCommand.json")
   tags          = local.tags
 }
 
 resource "aws_ssm_association" "configure_unreal_horde_agent" {
   count            = length(var.agents) > 0 ? 1 : 0
-  association_name = "ConfigureUnrealHordeAgent"
+  association_name = "${var.project_prefix}-ConfigureHordeAgent"
   name             = aws_ssm_document.ansible_run_document[0].name
   parameters = {
     SourceInfo     = "{\"path\":\"https://${aws_s3_bucket.ansible_playbooks[0].bucket_domain_name}/agent/\"}"
@@ -268,7 +308,6 @@ resource "aws_ssm_association" "configure_unreal_horde_agent" {
   }
 
   targets {
-    // Only apply to instances created from the launch template on Linux (platform == "")
     key = "tag:aws:ec2launchtemplate:id"
     values = [
       for name, lt in aws_launch_template.unreal_horde_agent_template :
@@ -276,6 +315,5 @@ resource "aws_ssm_association" "configure_unreal_horde_agent" {
     ]
   }
 
-  # Wait for service to be ready before attempting enrollment
-  depends_on = [aws_ecs_service.unreal_horde]
+  depends_on = [aws_instance.horde_host]
 }

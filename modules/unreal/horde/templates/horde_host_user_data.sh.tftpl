@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euxo pipefail
+
+REGION="${region}"
+GHCR_SECRET_ARN="${ghcr_credentials_secret_arn}"
+MONGO_USER="${mongo_username}"
+MONGO_PWD_SECRET_ARN="${mongo_password_secret_arn}"
+P4_USER_SECRET_ARN="${p4_super_user_username_secret_arn}"
+P4_PWD_SECRET_ARN="${p4_super_user_password_secret_arn}"
+
+dnf install -y docker jq
+
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -sSL -o /usr/libexec/docker/cli-plugins/docker-compose \
+  "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-aarch64"
+chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+for i in $(seq 1 60); do
+  if [ -b /dev/nvme1n1 ]; then break; fi
+  sleep 2
+done
+
+if ! blkid /dev/nvme1n1; then
+  mkfs.xfs -L horde-data /dev/nvme1n1
+fi
+
+mkdir -p /var/lib/horde-data
+grep -q '/var/lib/horde-data' /etc/fstab || \
+  echo "LABEL=horde-data /var/lib/horde-data xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+
+mkdir -p /var/lib/horde-data/mongo /var/lib/horde-data/redis /var/lib/horde-data/horde
+chown -R 999:999 /var/lib/horde-data/mongo
+chmod 700 /var/lib/horde-data/mongo
+
+mkdir -p /etc/horde
+
+GHCR_JSON=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$GHCR_SECRET_ARN" --query SecretString --output text)
+GHCR_USER=$(echo "$GHCR_JSON" | jq -r .username)
+GHCR_PASS=$(echo "$GHCR_JSON" | jq -r .password)
+echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+MONGO_PWD=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$MONGO_PWD_SECRET_ARN" --query SecretString --output text)
+
+umask 077
+cat >/etc/horde/mongo.env <<EOF
+MONGO_INITDB_ROOT_USERNAME=$${MONGO_USER}
+MONGO_INITDB_ROOT_PASSWORD=$${MONGO_PWD}
+EOF
+
+cat >/etc/horde/horde.env <<EOF
+Horde__databaseConnectionString=mongodb://$${MONGO_USER}:$${MONGO_PWD}@127.0.0.1:27017/?directConnection=true
+Horde__redisConnectionConfig=127.0.0.1:6379
+Horde__jwtIssuer=https://${fqdn}
+Horde__httpPort=${api_port}
+Horde__httpsPort=0
+Horde__rpcPort=${grpc_port}
+Horde__serverPrivateCert=
+Horde__runModes__0=Server
+${horde_env_lines}
+EOF
+
+if [ -n "$P4_USER_SECRET_ARN" ]; then
+  P4_USER=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$P4_USER_SECRET_ARN" --query SecretString --output text)
+  P4_PWD=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$P4_PWD_SECRET_ARN" --query SecretString --output text)
+  cat >>/etc/horde/horde.env <<EOF
+Horde__Perforce__0__credentials__username=$${P4_USER}
+Horde__Perforce__0__credentials__password=$${P4_PWD}
+EOF
+fi
+
+cat >/etc/horde/docker-compose.yml <<'COMPOSE_EOF'
+${docker_compose_yaml}
+COMPOSE_EOF
+
+cat >/etc/systemd/system/horde-compose.service <<'EOF'
+[Unit]
+Description=Horde Server compose stack
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/etc/horde
+ExecStartPre=/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now horde-compose.service

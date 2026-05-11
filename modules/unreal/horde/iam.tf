@@ -1,23 +1,18 @@
-#############################################
-# IAM Roles for Unreal Engine Horde Module
-#############################################
-
-data "aws_iam_policy_document" "ecs_tasks_trust_relationship" {
+data "aws_iam_policy_document" "ec2_host_trust" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
+      identifiers = ["ec2.amazonaws.com"]
     }
   }
 }
 
 data "aws_iam_policy_document" "unreal_horde_default_policy" {
   count = var.create_unreal_horde_default_policy ? 1 : 0
-  # ECS
   statement {
-    sid    = "ECSExec"
+    sid    = "SSMExec"
     effect = "Allow"
     actions = [
       "ssmmessages:OpenDataChannel",
@@ -25,137 +20,142 @@ data "aws_iam_policy_document" "unreal_horde_default_policy" {
       "ssmmessages:CreateDataChannel",
       "ssmmessages:CreateControlChannel",
     ]
-    resources = [
-      "*"
-    ]
+    resources = ["*"]
   }
 }
-data "aws_iam_policy_document" "unreal_horde_elasticache_policy" {
-  count = var.custom_cache_connection_config == null ? 1 : 0
-  # Elasticache
-  statement {
-    sid    = "ElasticacheConnect"
-    effect = "Allow"
-    actions = [
-      "elasticache:Connect"
-    ]
-    resources = (var.elasticache_engine == "redis" ?
-      [aws_elasticache_cluster.horde[0].arn] :
-    [aws_elasticache_replication_group.horde[0].arn])
 
-  }
-}
 data "aws_iam_policy_document" "unreal_horde_recycle_policy" {
   count = var.create_unreal_horde_recycle_policy ? 1 : 0
-  # EC2
   statement {
     effect = "Allow"
     actions = [
       "ec2:DescribeInstances",
+      "ec2:DescribeInstanceTypes",
+      "ec2:DescribeLaunchTemplates",
+      "ec2:DescribeLaunchTemplateVersions",
+      "ec2:DescribeSpotPriceHistory",
       "ec2:RunInstances",
       "ec2:StartInstances",
       "ec2:StopInstances",
+      "ec2:TerminateInstances",
       "ec2:ModifyInstanceAttribute",
+      "autoscaling:DescribeAutoScalingGroups",
+      "autoscaling:DescribeAutoScalingInstances",
+      "autoscaling:SetDesiredCapacity",
+      "autoscaling:UpdateAutoScalingGroup",
+      "autoscaling:TerminateInstanceInAutoScalingGroup",
     ]
     resources = ["*"]
   }
 }
 
-resource "aws_iam_policy" "unreal_horde_default_policy" {
-  count = var.create_unreal_horde_default_policy ? 1 : 0
+data "aws_iam_policy_document" "unreal_horde_storage_policy" {
+  count = var.create_s3_storage_bucket ? 1 : 0
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
+    ]
+    resources = ["${aws_s3_bucket.horde_storage[0].arn}/*"]
+  }
 
-  name        = "${var.project_prefix}-unreal_horde-default-policy"
-  description = "Policy granting permissions for Unreal Horde."
-  policy      = data.aws_iam_policy_document.unreal_horde_default_policy[0].json
-}
-
-resource "aws_iam_policy" "unreal_horde_elasticache_policy" {
-  count = var.custom_cache_connection_config == null ? 1 : 0
-
-  name        = "${var.project_prefix}-unreal_horde-elasticache-policy"
-  description = "Policy granting elasticache connect permissions for Unreal Horde."
-  policy      = data.aws_iam_policy_document.unreal_horde_elasticache_policy[0].json
-}
-
-resource "aws_iam_policy" "unreal_horde_recycle_policy" {
-  count = var.create_unreal_horde_recycle_policy ? 1 : 0
-
-  name        = "${var.project_prefix}-unreal_horde-recycle-policy"
-  description = "Policy granting Unreal Horde access to EC2 for agent reuse/recycling."
-  policy      = data.aws_iam_policy_document.unreal_horde_recycle_policy[0].json
-}
-
-resource "aws_iam_role" "unreal_horde_default_role" {
-  count = var.create_unreal_horde_default_role ? 1 : 0
-
-  name               = "${var.project_prefix}-unreal_horde-default-role"
-  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_trust_relationship.json
-
-  tags = local.tags
-}
-
-#conditionally attach elasticache policy to default role
-resource "aws_iam_role_policy_attachment" "unreal_horde_elasticache_policy_attachment" {
-  count = var.custom_cache_connection_config == null ? 1 : 0
-
-  role       = aws_iam_role.unreal_horde_default_role[0].name
-  policy_arn = aws_iam_policy.unreal_horde_elasticache_policy[0].arn
-}
-
-resource "aws_iam_role_policy_attachment" "unreal_horde_default_policy_attachment" {
-  count = var.create_unreal_horde_default_policy ? 1 : 0
-
-  role       = aws_iam_role.unreal_horde_default_role[0].name
-  policy_arn = aws_iam_policy.unreal_horde_default_policy[0].arn
-}
-
-resource "aws_iam_role_policy_attachment" "unreal_horde_recycle_attachment" {
-  count = var.create_unreal_horde_recycle_policy ? 1 : 0
-
-  role       = aws_iam_role.unreal_horde_default_role[0].name
-  policy_arn = aws_iam_policy.unreal_horde_recycle_policy[0].arn
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket",
+      "s3:ListBucketMultipartUploads",
+      "s3:GetBucketLocation",
+    ]
+    resources = [aws_s3_bucket.horde_storage[0].arn]
+  }
 }
 
 data "aws_iam_policy_document" "unreal_horde_secrets_manager_policy" {
   count = var.github_credentials_secret_arn != null || var.p4_super_user_username_secret_arn != null ? 1 : 0
   statement {
-    effect = "Allow"
-    actions = [
-      "secretsmanager:GetSecretValue",
-    ]
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
     resources = concat(
-      var.github_credentials_secret_arn != null ? [
-        var.github_credentials_secret_arn
-      ] : [],
+      [aws_secretsmanager_secret.mongo.arn],
+      var.github_credentials_secret_arn != null ? [var.github_credentials_secret_arn] : [],
       var.p4_super_user_username_secret_arn != null ? [
         var.p4_super_user_username_secret_arn,
         var.p4_super_user_password_secret_arn,
-      ] : []
+      ] : [],
     )
   }
+}
+
+resource "aws_iam_policy" "unreal_horde_default_policy" {
+  count       = var.create_unreal_horde_default_policy ? 1 : 0
+  name        = "${var.project_prefix}-unreal_horde-default-policy"
+  description = "Default permissions for the Horde server EC2 host (SSM)."
+  policy      = data.aws_iam_policy_document.unreal_horde_default_policy[0].json
+}
+
+resource "aws_iam_policy" "unreal_horde_recycle_policy" {
+  count       = var.create_unreal_horde_recycle_policy ? 1 : 0
+  name        = "${var.project_prefix}-unreal_horde-recycle-policy"
+  description = "Permissions for Horde server to drive ASG scaling via the AwsAsg fleet manager."
+  policy      = data.aws_iam_policy_document.unreal_horde_recycle_policy[0].json
+}
+
+resource "aws_iam_policy" "unreal_horde_storage_policy" {
+  count       = var.create_s3_storage_bucket ? 1 : 0
+  name        = "${var.project_prefix}-unreal_horde-storage-policy"
+  description = "Permissions for Horde to read and write artifacts and logs to the storage bucket."
+  policy      = data.aws_iam_policy_document.unreal_horde_storage_policy[0].json
 }
 
 resource "aws_iam_policy" "unreal_horde_secrets_manager_policy" {
   count       = var.github_credentials_secret_arn != null || var.p4_super_user_username_secret_arn != null ? 1 : 0
   name        = "${var.project_prefix}-unreal-horde-secrets-manager-policy"
-  description = "Policy granting permissions for Unreal Horde task execution role to access SSM."
+  description = "Permissions for the Horde host to read GHCR creds, Mongo password, and P4 super-user creds from Secrets Manager."
   policy      = data.aws_iam_policy_document.unreal_horde_secrets_manager_policy[0].json
 }
 
-resource "aws_iam_role" "unreal_horde_task_execution_role" {
-  name = "${var.project_prefix}-unreal_horde-task-execution-role"
-
-  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_trust_relationship.json
+resource "aws_iam_role" "unreal_horde_default_role" {
+  count              = var.create_unreal_horde_default_role ? 1 : 0
+  name               = "${var.project_prefix}-unreal_horde-host-role"
+  assume_role_policy = data.aws_iam_policy_document.ec2_host_trust.json
+  tags               = local.tags
 }
 
-resource "aws_iam_role_policy_attachment" "unreal_horde_task_execution_policy_attachment" {
-  role       = aws_iam_role.unreal_horde_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+resource "aws_iam_role_policy_attachment" "ssm_managed" {
+  count      = var.create_unreal_horde_default_role ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "unreal_horde_default_policy_attachment" {
+  count      = var.create_unreal_horde_default_policy ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = aws_iam_policy.unreal_horde_default_policy[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "unreal_horde_recycle_attachment" {
+  count      = var.create_unreal_horde_recycle_policy ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = aws_iam_policy.unreal_horde_recycle_policy[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "unreal_horde_storage_attachment" {
+  count      = var.create_s3_storage_bucket ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = aws_iam_policy.unreal_horde_storage_policy[0].arn
 }
 
 resource "aws_iam_role_policy_attachment" "unreal_horde_secrets_manager_policy_attachment" {
-  count = var.github_credentials_secret_arn != null || var.p4_super_user_username_secret_arn != null ? 1 : 0
-
-  role       = aws_iam_role.unreal_horde_task_execution_role.name
+  count      = (var.github_credentials_secret_arn != null || var.p4_super_user_username_secret_arn != null) ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
   policy_arn = aws_iam_policy.unreal_horde_secrets_manager_policy[0].arn
+}
+
+resource "aws_iam_instance_profile" "horde_host" {
+  name = "${var.project_prefix}-unreal_horde-host-profile"
+  role = aws_iam_role.unreal_horde_default_role[0].name
 }

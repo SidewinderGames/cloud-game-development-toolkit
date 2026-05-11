@@ -1,8 +1,12 @@
-# - Random Strings to prevent naming conflicts -
 resource "random_string" "unreal_horde" {
   length  = 4
   special = false
   upper   = false
+}
+
+resource "random_password" "mongo" {
+  length  = 32
+  special = false
 }
 
 data "aws_region" "current" {}
@@ -13,13 +17,8 @@ locals {
     "environment" = var.environment
   })
 
-  elasticache_redis_connection_strings = var.elasticache_engine == "redis" ? [for node in aws_elasticache_cluster.horde[0].cache_nodes : "${node.address}:${node.port}"] : null
-
-  elasticache_valkey_connection_strings = var.elasticache_engine == "valkey" ? "${aws_elasticache_replication_group.horde[0].primary_endpoint_address}:${var.elasticache_port}" : null
-
-  redis_connection_config = var.custom_cache_connection_config != null ? var.custom_cache_connection_config : (var.elasticache_engine == "redis" ? join(",", local.elasticache_redis_connection_strings) : local.elasticache_valkey_connection_strings)
-
-  database_connection_string = var.database_connection_string != null ? var.database_connection_string : "mongodb://${var.docdb_master_username}:${var.docdb_master_password}@${aws_docdb_cluster.horde[0].endpoint}:27017/?tls=true&tlsCAFile=/app/config/global-bundle.pem&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false"
+  database_connection_string = "mongodb://${var.mongo_username}:${random_password.mongo.result}@127.0.0.1:27017/?directConnection=true&readPreference=primary&retryWrites=true"
+  redis_connection_config    = "127.0.0.1:6379"
 
   need_p4_trust = var.p4_port != null && startswith(var.p4_port, "ssl:")
 
@@ -67,17 +66,35 @@ locals {
     {
       name  = "ASPNETCORE_ENVIRONMENT"
       value = var.environment
-    }
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backend__Type"
+      value = var.create_s3_storage_bucket ? "Aws" : null
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backend__AwsBucketName"
+      value = var.create_s3_storage_bucket ? aws_s3_bucket.horde_storage[0].id : null
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backend__AwsBucketPath"
+      value = var.create_s3_storage_bucket ? "horde/" : null
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backend__AwsRegion"
+      value = var.create_s3_storage_bucket ? data.aws_region.current.id : null
+    },
+    {
+      name  = "Horde__Plugins__Compute__WithAws"
+      value = length(var.agents) > 0 ? "true" : null
+    },
+    {
+      name  = "Horde__Plugins__Compute__AwsRegions__0"
+      value = length(var.agents) > 0 ? data.aws_region.current.id : null
+    },
   ] : config.value != null ? config : null]
 
-  horde_service_secrets = [for config in [
-    {
-      name      = "Horde__Perforce__0__credentials__username"
-      valueFrom = var.p4_super_user_username_secret_arn
-    },
-    {
-      name      = "Horde__Perforce__0__credentials__password"
-      valueFrom = var.p4_super_user_password_secret_arn
-    },
-  ] : config.valueFrom != null ? config : null]
+  horde_service_secrets = {
+    p4_super_username = var.p4_super_user_username_secret_arn
+    p4_super_password = var.p4_super_user_password_secret_arn
+  }
 }
