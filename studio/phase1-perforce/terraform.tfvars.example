@@ -10,3 +10,13 @@ p4_depot_volume_size    = 500
 p4_metadata_volume_size = 32
 p4_logs_volume_size     = 32
 p4_instance_type        = "t4g.medium"
+
+# Tailscale subnet router. Before applying, create the auth-key secret:
+#   aws secretsmanager create-secret \
+#     --region us-east-1 \
+#     --name sidewinder/tailscale-auth-key \
+#     --secret-string "tskey-auth-..."
+create_tailscale_relay         = true
+tailscale_auth_key_secret_name = "sidewinder/tailscale-auth-key"
+tailscale_advertise_routes     = "10.40.0.0/16"
+tailscale_relay_tags           = "tag:subnet-router"

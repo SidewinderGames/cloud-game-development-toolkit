@@ -47,3 +47,18 @@ output "studio_route53_zone_id" {
   description = "Route53 zone ID for studio.sidewinder.dev."
   value       = data.aws_route53_zone.studio.id
 }
+
+output "tailscale_relay_instance_id" {
+  description = "EC2 instance ID of the Tailscale subnet router (if enabled)."
+  value       = var.create_tailscale_relay ? aws_instance.tailscale_relay[0].id : null
+}
+
+output "tailscale_relay_security_group_id" {
+  description = "Security group attached to the Tailscale subnet router."
+  value       = var.create_tailscale_relay ? aws_security_group.tailscale_relay[0].id : null
+}
+
+output "tailscale_relay_public_ip" {
+  description = "Public IP of the Tailscale relay (for direct SSH if Tailscale is unreachable for debugging). Routine access uses Tailscale."
+  value       = var.create_tailscale_relay ? aws_instance.tailscale_relay[0].public_ip : null
+}

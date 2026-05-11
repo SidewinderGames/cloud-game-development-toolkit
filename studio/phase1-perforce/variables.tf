@@ -52,3 +52,49 @@ variable "tags" {
     Project = "phase1-perforce"
   }
 }
+
+##############################################################################
+# Tailscale subnet router (additive, replaces IP whitelist after cutover)
+##############################################################################
+
+variable "create_tailscale_relay" {
+  description = "Whether to deploy the Tailscale subnet router in the studio VPC."
+  type        = bool
+  default     = true
+}
+
+variable "tailscale_auth_key_secret_name" {
+  description = "Name (not ARN) of an AWS Secrets Manager secret holding a Tailscale auth key (tskey-auth-...). Must be created manually before apply."
+  type        = string
+  default     = "sidewinder/tailscale-auth-key"
+}
+
+variable "tailscale_relay_instance_type" {
+  description = "EC2 instance type for the Tailscale subnet router. t4g.nano is plenty for a 5-person studio."
+  type        = string
+  default     = "t4g.nano"
+}
+
+variable "tailscale_relay_hostname" {
+  description = "Hostname the subnet router advertises to the tailnet."
+  type        = string
+  default     = "sidewinder-aws-relay"
+}
+
+variable "tailscale_advertise_routes" {
+  description = "Comma-separated list of CIDRs the relay advertises to the tailnet. Must match the studio VPC CIDR."
+  type        = string
+  default     = "10.40.0.0/16"
+}
+
+variable "tailscale_relay_tags" {
+  description = "Comma-separated tailnet tags the relay node is assigned. Must be owned by the auth key. The autoApprover ACL keys off these."
+  type        = string
+  default     = "tag:subnet-router"
+}
+
+variable "tailscale_relay_enable_ssh" {
+  description = "Enable Tailscale SSH on the relay so tailnet admins can SSH in via WireGuard identity (no SSH keys needed)."
+  type        = bool
+  default     = true
+}
