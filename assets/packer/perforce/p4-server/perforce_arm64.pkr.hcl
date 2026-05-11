@@ -99,6 +99,14 @@ build {
       ]
     }
 
+    # Normalize line endings: if Packer was run from a Windows host whose git
+    # clone has core.autocrlf set, the uploaded script will have CRLF and the
+    # Linux kernel will fail to find "/bin/bash\r" as the shebang interpreter,
+    # producing the unhelpful "cannot execute: required file not found" error.
+    provisioner "shell" {
+      inline = ["sudo sed -i 's/\\r$//' /home/ec2-user/gpic_scripts/p4_configure.sh"]
+    }
+
     provisioner "shell" {
       inline = ["sudo chmod +x /home/ec2-user/gpic_scripts/p4_configure.sh"]
     }
