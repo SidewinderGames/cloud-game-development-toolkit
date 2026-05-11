@@ -66,42 +66,37 @@ $base = "https://api.tailscale.com/api/v2/tailnet/$Tailnet"
 
 Write-Host "==> Fetching current ACL for tailnet '$Tailnet'..."
 $resp = Invoke-WebRequest -Uri "$base/acl" -Headers $headers -Method Get
-$acl  = $resp.Content | ConvertFrom-Json -Depth 50
+# -AsHashtable so we can mutate keys reliably; required for PS7+ behavior.
+$acl  = $resp.Content | ConvertFrom-Json -AsHashtable -Depth 50
 
-# Ensure top-level objects exist
-foreach ($prop in @("tagOwners", "autoApprovers", "ssh")) {
-  if (-not $acl.PSObject.Properties.Match($prop).Count) {
-    $defaultValue = if ($prop -eq "ssh") { @() } else { @{} }
-    $acl | Add-Member -NotePropertyName $prop -NotePropertyValue $defaultValue
-  }
+# Ensure top-level keys exist as plain hashtables / arrays.
+if (-not $acl.ContainsKey("tagOwners"))     { $acl["tagOwners"]     = @{} }
+if (-not $acl.ContainsKey("autoApprovers")) { $acl["autoApprovers"] = @{} }
+if (-not $acl.ContainsKey("ssh"))           { $acl["ssh"]           = @() }
+if (-not $acl["autoApprovers"].ContainsKey("routes")) {
+  $acl["autoApprovers"]["routes"] = @{}
 }
 
-if (-not $acl.autoApprovers.PSObject.Properties.Match("routes").Count) {
-  $acl.autoApprovers | Add-Member -NotePropertyName routes -NotePropertyValue @{}
-}
-
-Write-Host "==> Merging tag:$($RouterTag) tagOwner + autoApprover + SSH rule..."
+Write-Host "==> Merging $RouterTag tagOwner + autoApprover + SSH rule..."
 
 # tagOwners
-$acl.tagOwners | Add-Member -NotePropertyName $RouterTag `
-  -NotePropertyValue @("autogroup:admin") -Force
+$acl["tagOwners"][$RouterTag] = @("autogroup:admin")
 
 # autoApprovers.routes
-$acl.autoApprovers.routes | Add-Member -NotePropertyName $VpcCidr `
-  -NotePropertyValue @($RouterTag) -Force
+$acl["autoApprovers"]["routes"][$VpcCidr] = @($RouterTag)
 
-# SSH rule (admin -> relay, idempotent by inspecting existing rules)
-$existingSsh = @($acl.ssh) | Where-Object {
-  $_.dst -contains $RouterTag -and $_.src -contains "autogroup:admin"
+# SSH rule (admin -> relay, idempotent: skip if equivalent rule already present)
+$existingSsh = @($acl["ssh"]) | Where-Object {
+  ($_.dst -contains $RouterTag) -and ($_.src -contains "autogroup:admin")
 }
 if (-not $existingSsh) {
-  $newRule = [pscustomobject]@{
+  $newRule = @{
     action = "accept"
     src    = @("autogroup:admin")
     dst    = @($RouterTag)
     users  = @("root", "ec2-user")
   }
-  $acl.ssh = @($acl.ssh) + $newRule
+  $acl["ssh"] = @($acl["ssh"]) + $newRule
 }
 
 $body = $acl | ConvertTo-Json -Depth 50
@@ -156,7 +151,7 @@ if ($LASTEXITCODE -eq 0) {
 Write-Host ""
 Write-Host "DONE."
 Write-Host "  ACL: tagOwners[$RouterTag], autoApprovers.routes[$VpcCidr] = [$RouterTag], SSH for admins"
-Write-Host "  Auth key: stored at arn:aws:secretsmanager:$AwsRegion:<acct>:secret:$SecretName"
+Write-Host "  Auth key: stored in Secrets Manager (region=${AwsRegion}, name=${SecretName})"
 Write-Host ""
 Write-Host "Next: trigger the Phase 1 stack in Spacelift. The relay's user-data"
 Write-Host "will read the auth key from Secrets Manager on boot and join the tailnet."
