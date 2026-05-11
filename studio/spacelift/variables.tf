@@ -10,6 +10,17 @@ variable "vcs_branch" {
   default     = "sidewinder"
 }
 
+variable "github_namespace" {
+  description = "GitHub org or user that owns the repository."
+  type        = string
+  default     = "SidewinderGames"
+}
+
+variable "github_app_installation_id" {
+  description = "Spacelift integration ID for the custom GitHub App (sidewinder-github). Find it in the Spacelift UI under Source code -> GitHub -> click the integration -> the Integration ID is shown on the details page (also visible in the URL). Required because the account has a named custom integration rather than the global default GitHub App."
+  type        = string
+}
+
 variable "terraform_version" {
   description = "OpenTofu version used by the runners. OpenTofu is the open-source fork of pre-BSL Terraform; wire-compatible with all our providers."
   type        = string

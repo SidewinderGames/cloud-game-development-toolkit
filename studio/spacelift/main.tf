@@ -24,6 +24,11 @@ resource "spacelift_stack" "phase1_perforce" {
   terraform_version       = var.terraform_version
   terraform_workflow_tool = "OPEN_TOFU"
 
+  github_enterprise {
+    namespace = var.github_namespace
+    id        = var.github_app_installation_id
+  }
+
   autodeploy            = false
   enable_local_preview  = false
   protect_from_deletion = true
@@ -79,6 +84,11 @@ resource "spacelift_stack" "phase2_horde" {
   project_root            = "studio/phase2-horde"
   terraform_version       = var.terraform_version
   terraform_workflow_tool = "OPEN_TOFU"
+
+  github_enterprise {
+    namespace = var.github_namespace
+    id        = var.github_app_installation_id
+  }
 
   autodeploy            = false
   enable_local_preview  = false
