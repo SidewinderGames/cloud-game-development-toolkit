@@ -2,12 +2,17 @@ locals {
   spacelift_issuer_url = "https://${var.spacelift_account_name}.app.spacelift.io"
   spacelift_audience   = "${var.spacelift_account_name}.app.spacelift.io"
 
-  # Each managed stack gets a sub-claim entry. Wildcards on run_type and scope
-  # let plan, apply, and task runs all assume the role.
-  oidc_sub_patterns = [
-    for slug in var.managed_stack_slugs :
-    "space:${var.spacelift_space_id}:stack:${slug}:run_type:*:scope:*"
-  ]
+  # Permit any subject within the configured Spacelift space. This is what
+  # Spacelift's own docs recommend (space:<space_id>:*) and what the AWS
+  # integration's pre-flight validation requires - that test call doesn't
+  # carry a stack-specific subject. The trust is still narrowed by:
+  #   - the OIDC issuer (only Spacelift's account)
+  #   - the aud claim (the account name)
+  #   - the space (anything outside `root` is rejected)
+  # To tighten further once everything is stable, swap this for a list of
+  # per-stack patterns like:
+  #   "space:root:stack:sidewinder-phase1-perforce:run_type:*:scope:*"
+  oidc_sub_patterns = ["space:${var.spacelift_space_id}:*"]
 }
 
 data "tls_certificate" "spacelift" {
