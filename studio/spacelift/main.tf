@@ -22,7 +22,7 @@ resource "spacelift_stack" "phase1_perforce" {
   branch                  = var.vcs_branch
   project_root            = "studio/phase1-perforce"
   terraform_version       = var.terraform_version
-  terraform_workflow_tool = "TERRAFORM_FOSS"
+  terraform_workflow_tool = "OPEN_TOFU"
 
   autodeploy            = false
   enable_local_preview  = false
@@ -78,7 +78,7 @@ resource "spacelift_stack" "phase2_horde" {
   branch                  = var.vcs_branch
   project_root            = "studio/phase2-horde"
   terraform_version       = var.terraform_version
-  terraform_workflow_tool = "TERRAFORM_FOSS"
+  terraform_workflow_tool = "OPEN_TOFU"
 
   autodeploy            = false
   enable_local_preview  = false

@@ -11,9 +11,9 @@ variable "vcs_branch" {
 }
 
 variable "terraform_version" {
-  description = "Terraform version used by the runners."
+  description = "OpenTofu version used by the runners. OpenTofu is the open-source fork of pre-BSL Terraform; wire-compatible with all our providers."
   type        = string
-  default     = "1.15.2"
+  default     = "1.10.6"
 }
 
 variable "aws_runner_role_arn" {
