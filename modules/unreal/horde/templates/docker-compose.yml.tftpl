@@ -8,7 +8,7 @@ services:
       - --bind_ip
       - "127.0.0.1"
       - --wiredTigerCacheSizeGB
-      - "${mongo_max_cache_g}"
+      - "${mongo_max_cache_gb}"
       - --quiet
     env_file: /etc/horde/mongo.env
     volumes:

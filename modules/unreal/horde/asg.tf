@@ -258,7 +258,7 @@ resource "aws_s3_bucket_versioning" "ansible_playbooks_versioning" {
 resource "aws_s3_bucket_public_access_block" "ansible_playbooks_bucket_public_block" {
   count = length(var.agents) > 0 ? 1 : 0
 
-  depends_on = [aws_s3_bucket.ansible_playbooks[0]]
+  depends_on              = [aws_s3_bucket.ansible_playbooks[0]]
   bucket                  = aws_s3_bucket.ansible_playbooks[0].id
   block_public_acls       = true
   block_public_policy     = true
