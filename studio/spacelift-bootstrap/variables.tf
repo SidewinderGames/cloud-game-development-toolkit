@@ -5,35 +5,26 @@ variable "aws_region" {
 }
 
 variable "spacelift_account_name" {
-  description = "Spacelift account subdomain (e.g. sidewinder-games for sidewinder-games.app.us.spacelift.io)."
+  description = "Spacelift account subdomain (e.g. sidewinder-games for sidewinder-games.app.us.spacelift.io). Used as the external-id prefix in the IAM role's trust policy."
   type        = string
   default     = "sidewinder-games"
 }
 
 variable "spacelift_account_region" {
-  description = "Regional segment in the Spacelift URL. Set to 'us' for sidewinder-games.app.us.spacelift.io, 'eu' for the EU region, or empty string for legacy accounts without a region segment."
+  description = "Spacelift SaaS region the account lives in. Drives which Spacelift-owned AWS account principal to trust. 'us' for app.us.spacelift.io, '' for the default app.spacelift.io."
   type        = string
   default     = "us"
 
   validation {
-    condition     = contains(["", "us", "eu"], var.spacelift_account_region)
-    error_message = "spacelift_account_region must be empty, 'us', or 'eu'."
+    condition     = contains(["", "us"], var.spacelift_account_region)
+    error_message = "spacelift_account_region must be '' or 'us'. Add a mapping in main.tf if Spacelift adds more regions."
   }
 }
 
-variable "spacelift_space_id" {
-  description = "Spacelift space the stacks live in. Defaults to the root space."
+variable "spacelift_aws_principal_account_id_override" {
+  description = "Optional override for the Spacelift-owned AWS account ID that's allowed to assume the role. If null, derived from spacelift_account_region."
   type        = string
-  default     = "root"
-}
-
-variable "managed_stack_slugs" {
-  description = "Stack slugs whose runs are allowed to assume the IAM role. The OIDC subject claim is built from these."
-  type        = list(string)
-  default = [
-    "sidewinder-phase1-perforce",
-    "sidewinder-phase2-horde",
-  ]
+  default     = null
 }
 
 variable "iam_role_name" {
