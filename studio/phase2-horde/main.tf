@@ -5,11 +5,11 @@ module "horde" {
   name           = "horde"
   environment    = "Production"
 
-  vpc_id                            = data.aws_vpc.studio.id
-  unreal_horde_service_subnets      = data.aws_subnets.public.ids
-  unreal_horde_external_alb_subnets = data.aws_subnets.public.ids
+  vpc_id                            = var.vpc_id
+  unreal_horde_service_subnets      = var.public_subnet_ids
+  unreal_horde_external_alb_subnets = var.public_subnet_ids
 
-  certificate_arn = data.aws_acm_certificate.studio_wildcard.arn
+  certificate_arn = var.certificate_arn
 
   horde_host_instance_type = var.horde_host_instance_type
   horde_data_volume_size   = var.horde_data_volume_size

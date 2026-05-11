@@ -16,12 +16,31 @@ variable "github_credentials_secret_arn" {
 }
 
 variable "p4_super_user_username_secret_arn" {
-  description = "Secrets Manager ARN for the p4d super-user username. Copy from Phase 1's p4_admin_username_secret_arn output (or use the dedicated super secret if you created a separate Horde service account)."
+  description = "Secrets Manager ARN for the p4d super-user username. Spacelift feeds this from Phase 1's p4_admin_username_secret_arn output via stack dependency. Set manually if running locally."
   type        = string
 }
 
 variable "p4_super_user_password_secret_arn" {
-  description = "Secrets Manager ARN for the p4d super-user password. Copy from Phase 1's p4_super_password_secret_arn output."
+  description = "Secrets Manager ARN for the p4d super-user password. Spacelift feeds this from Phase 1's p4_super_password_secret_arn output via stack dependency. Set manually if running locally."
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "VPC ID from Phase 1. Spacelift feeds this from Phase 1's studio_vpc_id output via stack dependency."
+  type        = string
+}
+
+variable "public_subnet_ids" {
+  description = "Public subnet IDs from Phase 1. Spacelift feeds these from Phase 1's studio_public_subnet_ids output via stack dependency."
+  type        = list(string)
+  validation {
+    condition     = length(var.public_subnet_ids) >= 2
+    error_message = "Phase 2 needs at least two public subnets in different AZs for the external ALB."
+  }
+}
+
+variable "certificate_arn" {
+  description = "Wildcard ACM cert ARN from Phase 1. Spacelift feeds this from Phase 1's studio_wildcard_certificate_arn output via stack dependency."
   type        = string
 }
 
