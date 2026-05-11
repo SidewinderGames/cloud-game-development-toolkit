@@ -1,0 +1,21 @@
+aws_region                  = "us-east-1"
+route53_subdomain_zone_name = "studio.sidewinder.dev"
+
+# Secrets Manager ARNs:
+#   github_credentials_secret_arn -- create manually with JSON {"username":"...", "password":"<PAT>"}
+#   p4_super_user_*_secret_arn    -- copy from Phase 1's terraform outputs
+github_credentials_secret_arn     = "arn:aws:secretsmanager:us-east-1:123456789012:secret:sidewinder/ghcr-credentials-XXXXXX"
+p4_super_user_username_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:sidewinder-p4-server-admin-username-XXXXXX"
+p4_super_user_password_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:sidewinder-p4-server-super-password-XXXXXX"
+
+# The agent AMI is a Linux AMI with Horde agent prerequisites. Until you build a warm-cached AMI,
+# start with a stock Ubuntu Noble x86_64 AMI; the toolkit's SSM Ansible association will install
+# the Horde agent service on first boot.
+agent_ami_id            = "ami-XXXXXXXXXXXXXXXXX"
+agent_max_size          = 3
+agent_workspace_size_gib = 1024
+agent_pool_name         = "linux-ue-builder"
+
+admin_cidrs              = []
+horde_host_instance_type = "t4g.medium"
+horde_data_volume_size   = 100
