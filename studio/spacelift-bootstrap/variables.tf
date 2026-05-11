@@ -5,9 +5,20 @@ variable "aws_region" {
 }
 
 variable "spacelift_account_name" {
-  description = "Spacelift account subdomain (e.g. sidewinder-games for sidewinder-games.app.spacelift.io)."
+  description = "Spacelift account subdomain (e.g. sidewinder-games for sidewinder-games.app.us.spacelift.io)."
   type        = string
   default     = "sidewinder-games"
+}
+
+variable "spacelift_account_region" {
+  description = "Regional segment in the Spacelift URL. Set to 'us' for sidewinder-games.app.us.spacelift.io, 'eu' for the EU region, or empty string for legacy accounts without a region segment."
+  type        = string
+  default     = "us"
+
+  validation {
+    condition     = contains(["", "us", "eu"], var.spacelift_account_region)
+    error_message = "spacelift_account_region must be empty, 'us', or 'eu'."
+  }
 }
 
 variable "spacelift_space_id" {

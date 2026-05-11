@@ -1,16 +1,13 @@
 locals {
-  spacelift_issuer_url = "https://${var.spacelift_account_name}.app.spacelift.io"
-  spacelift_audience   = "${var.spacelift_account_name}.app.spacelift.io"
+  spacelift_region_segment = var.spacelift_account_region == "" ? "" : ".${var.spacelift_account_region}"
+  spacelift_hostname       = "${var.spacelift_account_name}.app${local.spacelift_region_segment}.spacelift.io"
+  spacelift_issuer_url     = "https://${local.spacelift_hostname}"
+  spacelift_audience       = local.spacelift_hostname
 
-  # Permit any subject within the configured Spacelift space. This is what
-  # Spacelift's own docs recommend (space:<space_id>:*) and what the AWS
-  # integration's pre-flight validation requires - that test call doesn't
-  # carry a stack-specific subject. The trust is still narrowed by:
-  #   - the OIDC issuer (only Spacelift's account)
-  #   - the aud claim (the account name)
-  #   - the space (anything outside `root` is rejected)
-  # To tighten further once everything is stable, swap this for a list of
-  # per-stack patterns like:
+  # Allow any subject from the configured Spacelift space. Spacelift's own
+  # docs example uses this pattern: space:<space_id>:*. The trust is narrowed by
+  # the OIDC issuer (only this Spacelift account) and the aud claim. To tighten
+  # to per-stack subjects later, swap this for a list like:
   #   "space:root:stack:sidewinder-phase1-perforce:run_type:*:scope:*"
   oidc_sub_patterns = ["space:${var.spacelift_space_id}:*"]
 }
