@@ -56,8 +56,14 @@ variable "github_credentials_secret_arn" {
 }
 
 variable "agent_ami_id" {
-  description = "AMI ID for Horde build agents."
+  description = "AMI ID for the Linux Horde build agents. Ubuntu Noble amd64 works for first deploy; eventually a warm AMI with the project pre-synced."
   type        = string
+}
+
+variable "windows_agent_ami_id" {
+  description = "AMI ID for the Windows Horde build agents. Built via assets/packer/build-agents/windows/windows.pkr.hcl. Empty string disables the Windows pool entirely."
+  type        = string
+  default     = ""
 }
 
 variable "space_id" {

@@ -10,4 +10,7 @@ route53_subdomain_zone_name = "studio.sidewinder.dev"
 
 allowed_p4_cidrs              = "[\"203.0.113.10/32\", \"198.51.100.42/32\"]"
 github_credentials_secret_arn = "arn:aws:secretsmanager:us-east-1:622709063820:secret:sidewinder/ghcr-credentials-XXXXXX"
-agent_ami_id                  = "ami-XXXXXXXXXXXXXXXXX"
+agent_ami_id                  = "ami-XXXXXXXXXXXXXXXXX"  # Linux Ubuntu Noble amd64
+# Windows agent AMI built via assets/packer/build-agents/windows/windows.pkr.hcl.
+# Leave empty until the AMI completes; then set and trigger admin -> Phase 2.
+windows_agent_ami_id          = ""

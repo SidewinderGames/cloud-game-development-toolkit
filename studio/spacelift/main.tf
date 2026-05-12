@@ -139,6 +139,13 @@ resource "spacelift_environment_variable" "phase2_tf_agent_ami" {
   write_only = false
 }
 
+resource "spacelift_environment_variable" "phase2_tf_windows_agent_ami" {
+  stack_id   = spacelift_stack.phase2_horde.id
+  name       = "TF_VAR_windows_agent_ami_id"
+  value      = var.windows_agent_ami_id
+  write_only = false
+}
+
 ###############################################################################
 # Stack dependency: Phase 2 inherits Phase 1's outputs
 ###############################################################################

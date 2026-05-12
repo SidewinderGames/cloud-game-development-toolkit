@@ -17,10 +17,18 @@ github_credentials_secret_arn     = "arn:aws:secretsmanager:us-east-1:6227090638
 p4_super_user_username_secret_arn = "arn:aws:secretsmanager:us-east-1:622709063820:secret:sidewinder-p4-server-admin-username-XXXXXX"
 p4_super_user_password_secret_arn = "arn:aws:secretsmanager:us-east-1:622709063820:secret:sidewinder-p4-server-super-password-XXXXXX"
 
-agent_ami_id             = "ami-XXXXXXXXXXXXXXXXX"
+agent_ami_id             = "ami-XXXXXXXXXXXXXXXXX"  # Linux Ubuntu Noble amd64
 agent_max_size           = 3
 agent_workspace_size_gib = 1024
 agent_pool_name          = "linux-ue-builder"
+
+# Windows agent pool. Build the AMI via assets/packer/build-agents/windows/windows.pkr.hcl.
+# Leave windows_agent_ami_id = "" to skip the Windows pool entirely.
+windows_agent_ami_id             = ""  # set to ami-YYYYYYYYYYYYYYYYY after the Packer build completes
+windows_agent_max_size           = 2
+windows_agent_workspace_size_gib = 1024
+windows_agent_pool_name          = "windows-ue-builder"
+windows_agent_instance_types     = ["c7a.4xlarge", "c7i.4xlarge", "m7a.4xlarge"]
 
 admin_cidrs              = []
 horde_host_instance_type = "t4g.medium"

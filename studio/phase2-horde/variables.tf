@@ -63,26 +63,58 @@ variable "horde_data_volume_size" {
 }
 
 variable "agent_ami_id" {
-  description = "AMI ID for the build agent ASG. Use a Linux AMI with the Horde agent prerequisites baked in, or supply a freshly built agent AMI. The example uses an Ubuntu 24.04 base."
+  description = "AMI ID for the LINUX build agent ASG. Use a Linux AMI with the Horde agent prerequisites baked in. The example uses an Ubuntu 24.04 base."
   type        = string
 }
 
 variable "agent_max_size" {
-  description = "Maximum number of Spot build agents to launch concurrently."
+  description = "Maximum number of Linux Spot build agents to launch concurrently."
   type        = number
   default     = 3
 }
 
 variable "agent_workspace_size_gib" {
-  description = "Size in GiB of each Spot agent's workspace volume (for cloning the UE project)."
+  description = "Size in GiB of each Linux Spot agent's workspace volume."
   type        = number
   default     = 1024
 }
 
 variable "agent_pool_name" {
-  description = "Horde pool name and the value of the Horde_Autoscale_Pool tag the AwsAsg fleet manager will use to find this ASG."
+  description = "Horde pool name and Horde_Autoscale_Pool tag value for the Linux pool."
   type        = string
   default     = "linux-ue-builder"
+}
+
+# Windows agent pool. Set windows_agent_ami_id to enable; leave empty to skip.
+
+variable "windows_agent_ami_id" {
+  description = "AMI ID for the WINDOWS build agent ASG. Built via assets/packer/build-agents/windows/windows.pkr.hcl. Empty string disables the Windows pool entirely (only Linux agents will run)."
+  type        = string
+  default     = ""
+}
+
+variable "windows_agent_max_size" {
+  description = "Maximum number of Windows Spot build agents to launch concurrently."
+  type        = number
+  default     = 2
+}
+
+variable "windows_agent_workspace_size_gib" {
+  description = "Size in GiB of each Windows agent's workspace volume. Windows + UE source + Setup.bat binaries + build intermediates need >= 512 GiB; 1024 leaves room."
+  type        = number
+  default     = 1024
+}
+
+variable "windows_agent_pool_name" {
+  description = "Horde pool name and Horde_Autoscale_Pool tag value for the Windows pool."
+  type        = string
+  default     = "windows-ue-builder"
+}
+
+variable "windows_agent_instance_types" {
+  description = "Instance types the Windows ASG will request via mixed_instances_policy. Spot capacity-optimized picks the cheapest currently available. c7a.4xlarge is the cost/perf sweet spot for UE compile + link on AMD Zen 4."
+  type        = list(string)
+  default     = ["c7a.4xlarge", "c7i.4xlarge", "m7a.4xlarge"]
 }
 
 variable "tags" {

@@ -31,27 +31,51 @@ module "horde" {
 
   enable_unreal_horde_alb_access_logs = false
 
-  agents = {
-    (var.agent_pool_name) = {
-      ami                                      = var.agent_ami_id
-      instance_types                           = ["c7a.xlarge", "c7i.xlarge", "c6a.xlarge"]
-      horde_pool_name                          = var.agent_pool_name
-      on_demand_base_capacity                  = 0
-      on_demand_percentage_above_base_capacity = 0
-      spot_allocation_strategy                 = "capacity-optimized"
-      min_size                                 = 0
-      max_size                                 = var.agent_max_size
-      block_device_mappings = [
-        {
-          device_name = "/dev/sda1"
-          ebs = {
-            volume_size = var.agent_workspace_size_gib
-            volume_type = "gp3"
+  agents = merge(
+    {
+      (var.agent_pool_name) = {
+        ami                                      = var.agent_ami_id
+        instance_types                           = ["c7a.xlarge", "c7i.xlarge", "c6a.xlarge"]
+        horde_pool_name                          = var.agent_pool_name
+        on_demand_base_capacity                  = 0
+        on_demand_percentage_above_base_capacity = 0
+        spot_allocation_strategy                 = "capacity-optimized"
+        min_size                                 = 0
+        max_size                                 = var.agent_max_size
+        block_device_mappings = [
+          {
+            device_name = "/dev/sda1"
+            ebs = {
+              volume_size = var.agent_workspace_size_gib
+              volume_type = "gp3"
+            }
           }
-        }
-      ]
+        ]
+      }
+    },
+    var.windows_agent_ami_id == "" ? {} : {
+      (var.windows_agent_pool_name) = {
+        ami                                      = var.windows_agent_ami_id
+        instance_types                           = var.windows_agent_instance_types
+        horde_pool_name                          = var.windows_agent_pool_name
+        on_demand_base_capacity                  = 0
+        on_demand_percentage_above_base_capacity = 0
+        spot_allocation_strategy                 = "capacity-optimized"
+        min_size                                 = 0
+        max_size                                 = var.windows_agent_max_size
+        block_device_mappings = [
+          {
+            # Windows AMIs use /dev/sda1 as root too
+            device_name = "/dev/sda1"
+            ebs = {
+              volume_size = var.windows_agent_workspace_size_gib
+              volume_type = "gp3"
+            }
+          }
+        ]
+      }
     }
-  }
+  )
 
   tags = var.tags
 }
