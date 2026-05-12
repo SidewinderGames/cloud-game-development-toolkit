@@ -24,6 +24,9 @@ resource "spacelift_stack" "phase1_perforce" {
   terraform_version       = var.terraform_version
   terraform_workflow_tool = "OPEN_TOFU"
 
+  # Mirror Phase 2: also watch the upstream Perforce module the project_root consumes.
+  additional_project_globs = ["modules/perforce/**"]
+
   github_enterprise {
     namespace = var.github_namespace
     id        = var.github_app_installation_id
@@ -84,6 +87,11 @@ resource "spacelift_stack" "phase2_horde" {
   project_root            = "studio/phase2-horde"
   terraform_version       = var.terraform_version
   terraform_workflow_tool = "OPEN_TOFU"
+
+  # Trigger runs on changes to the Horde module the project_root consumes,
+  # not just to studio/phase2-horde/ itself. Otherwise edits to modules/unreal/horde
+  # land in master without Phase 2 ever picking them up.
+  additional_project_globs = ["modules/unreal/horde/**"]
 
   github_enterprise {
     namespace = var.github_namespace
