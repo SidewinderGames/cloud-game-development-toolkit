@@ -63,8 +63,9 @@ variable "horde_data_volume_size" {
 }
 
 variable "agent_ami_id" {
-  description = "AMI ID for the LINUX build agent ASG. Use a Linux AMI with the Horde agent prerequisites baked in. The example uses an Ubuntu 24.04 base."
+  description = "AMI ID for the LINUX build agent ASG. Empty string disables the Linux pool entirely (Windows-only deploys are valid). Use a Linux AMI with the Horde agent prerequisites baked in (Ubuntu 24.04 base recommended)."
   type        = string
+  default     = ""
 }
 
 variable "agent_max_size" {

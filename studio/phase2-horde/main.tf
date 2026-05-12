@@ -37,7 +37,7 @@ module "horde" {
   enable_unreal_horde_alb_access_logs = false
 
   agents = merge(
-    {
+    var.agent_ami_id == "" ? {} : {
       (var.agent_pool_name) = {
         ami                                      = var.agent_ami_id
         instance_types                           = ["c7a.xlarge", "c7i.xlarge", "c6a.xlarge"]
