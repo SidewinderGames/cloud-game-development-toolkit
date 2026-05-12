@@ -140,7 +140,7 @@ resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inboun
 resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inbound_http_redirect" {
   for_each          = var.create_external_alb ? toset(var.alb_https_ingress_cidrs) : []
   security_group_id = aws_security_group.unreal_horde_external_alb_sg[0].id
-  description       = "Allow plain HTTP so the ALB 80->443 redirect listener is reachable."
+  description       = "Allow plain HTTP so the ALB port 80 to 443 redirect listener is reachable."
   cidr_ipv4         = each.value
   from_port         = 80
   to_port           = 80

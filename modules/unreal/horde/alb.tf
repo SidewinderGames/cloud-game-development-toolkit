@@ -93,22 +93,11 @@ resource "aws_lb_listener" "unreal_horde_external_alb_https_listener" {
   tags = local.tags
 }
 
-resource "aws_lb_listener_rule" "unreal_horde_external_alb_grpc_rule" {
-  count        = var.create_external_alb ? 1 : 0
-  listener_arn = aws_lb_listener.unreal_horde_external_alb_https_listener[0].arn
-
-  condition {
-    http_header {
-      http_header_name = "content-type"
-      values           = ["application/grpc"]
-    }
-  }
-
-  action {
-    target_group_arn = aws_lb_target_group.unreal_horde_grpc_target_group_external[0].arn
-    type             = "forward"
-  }
-}
+# The dedicated gRPC listener on container_grpc_port is the agent channel.
+# A previous version of the module also added a listener_rule on 443 that
+# routed application/grpc traffic into the same target group, but that's no
+# longer needed and tying two resources to the gRPC target group blocks
+# replacement when its port changes.
 
 resource "aws_lb_listener" "unreal_horde_external_alb_http_listener" {
   count             = var.create_external_alb ? 1 : 0
