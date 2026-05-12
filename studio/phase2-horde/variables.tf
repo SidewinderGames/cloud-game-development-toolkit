@@ -51,9 +51,9 @@ variable "admin_cidrs" {
 }
 
 variable "horde_host_instance_type" {
-  description = "EC2 instance type for the Horde all-in-one host."
+  description = "EC2 instance type for the Horde all-in-one host. Must be amd64 (t3/t3a/m5/c5) - ghcr.io/epicgames/horde-server is amd64-only."
   type        = string
-  default     = "t4g.medium"
+  default     = "t3.medium"
 }
 
 variable "horde_data_volume_size" {
