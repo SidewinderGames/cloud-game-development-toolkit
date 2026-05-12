@@ -284,8 +284,18 @@ resource "aws_s3_object" "unreal_horde_agent_service" {
   force_destroy = true
 }
 
+locals {
+  # Launch-template IDs for Linux agent pools only. The Ansible-based agent
+  # bootstrap is Linux-specific; Windows agents are configured via their AMI's
+  # baked-in user data.
+  linux_agent_launch_template_ids = [
+    for name, lt in aws_launch_template.unreal_horde_agent_template :
+    lt.id if data.aws_ami.unreal_horde_agent_ami[name].platform == ""
+  ]
+}
+
 resource "aws_ssm_document" "ansible_run_document" {
-  count         = length(var.agents) > 0 ? 1 : 0
+  count         = length(local.linux_agent_launch_template_ids) > 0 ? 1 : 0
   document_type = "Command"
   name          = "${var.project_prefix}-AnsibleRun"
   content       = file("${path.module}/config/ssm/AnsibleRunCommand.json")
@@ -293,7 +303,7 @@ resource "aws_ssm_document" "ansible_run_document" {
 }
 
 resource "aws_ssm_association" "configure_unreal_horde_agent" {
-  count            = length(var.agents) > 0 ? 1 : 0
+  count            = length(local.linux_agent_launch_template_ids) > 0 ? 1 : 0
   association_name = "${var.project_prefix}-ConfigureHordeAgent"
   name             = aws_ssm_document.ansible_run_document[0].name
   parameters = {
@@ -308,11 +318,8 @@ resource "aws_ssm_association" "configure_unreal_horde_agent" {
   }
 
   targets {
-    key = "tag:aws:ec2launchtemplate:id"
-    values = [
-      for name, lt in aws_launch_template.unreal_horde_agent_template :
-      lt.id if data.aws_ami.unreal_horde_agent_ami[name].platform == ""
-    ]
+    key    = "tag:aws:ec2launchtemplate:id"
+    values = local.linux_agent_launch_template_ids
   }
 
   depends_on = [aws_instance.horde_host]
