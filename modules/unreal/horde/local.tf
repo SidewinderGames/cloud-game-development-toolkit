@@ -119,7 +119,7 @@ locals {
       name  = "Horde__Telemetry__0__RetainDays"
       value = var.telemetry_retain_days != null ? tostring(var.telemetry_retain_days) : null
     },
-  ] : config.value != null ? config : null]
+  ] : config if config.value != null]
 
   horde_service_secrets = {
     p4_super_username = var.p4_super_user_username_secret_arn
