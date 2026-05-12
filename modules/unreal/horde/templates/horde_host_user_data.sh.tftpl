@@ -58,16 +58,22 @@ Horde__jwtIssuer=https://${fqdn}
 Horde__httpPort=${api_port}
 Horde__httpsPort=0
 Horde__http2Port=${grpc_port}
+# Single-host deploys need both runModes; the Worker side owns the periodic
+# config poll (PerforceConfigSource) and ticker-driven background tasks.
 Horde__runModes__0=Server
+Horde__runModes__1=Worker
 ${horde_env_lines}
 EOF
 
 if [ -n "$P4_USER_SECRET_ARN" ]; then
   P4_USER=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$P4_USER_SECRET_ARN" --query SecretString --output text)
   P4_PWD=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$P4_PWD_SECRET_ARN" --query SecretString --output text)
+  # The secret value is a P4 ticket (generated with `p4 login -a -p`), not a
+  # raw password; using the ticket field skips Horde's fresh `p4 login`
+  # attempt (which would always fail against a ticket).
   cat >>/etc/horde/horde.env <<EOF
 Horde__Perforce__0__credentials__username=$${P4_USER}
-Horde__Perforce__0__credentials__password=$${P4_PWD}
+Horde__Perforce__0__credentials__ticket=$${P4_PWD}
 EOF
 fi
 
