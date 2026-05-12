@@ -133,6 +133,7 @@ resource "spacelift_environment_variable" "phase2_tf_ghcr" {
 }
 
 resource "spacelift_environment_variable" "phase2_tf_agent_ami" {
+  count      = var.agent_ami_id == "" ? 0 : 1
   stack_id   = spacelift_stack.phase2_horde.id
   name       = "TF_VAR_agent_ami_id"
   value      = var.agent_ami_id
@@ -140,6 +141,7 @@ resource "spacelift_environment_variable" "phase2_tf_agent_ami" {
 }
 
 resource "spacelift_environment_variable" "phase2_tf_windows_agent_ami" {
+  count      = var.windows_agent_ami_id == "" ? 0 : 1
   stack_id   = spacelift_stack.phase2_horde.id
   name       = "TF_VAR_windows_agent_ami_id"
   value      = var.windows_agent_ami_id
