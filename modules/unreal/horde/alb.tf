@@ -129,6 +129,25 @@ resource "aws_lb_listener" "unreal_horde_external_alb_http_listener" {
   tags = local.tags
 }
 
+# Dedicated gRPC listener on the gRPC port (default 8080). Horde agents
+# connect here for HTTP/2 RPC streams. ALB terminates TLS and forwards to the
+# Horde host's container_grpc_port.
+resource "aws_lb_listener" "unreal_horde_external_alb_grpc_listener" {
+  count             = var.create_external_alb ? 1 : 0
+  load_balancer_arn = aws_lb.unreal_horde_external_alb[0].arn
+  port              = var.container_grpc_port
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = var.certificate_arn
+
+  default_action {
+    target_group_arn = aws_lb_target_group.unreal_horde_grpc_target_group_external[0].arn
+    type             = "forward"
+  }
+
+  tags = local.tags
+}
+
 ###########################
 # Access Logs (gated)
 ###########################

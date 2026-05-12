@@ -125,8 +125,20 @@ variable "container_api_port" {
 
 variable "container_grpc_port" {
   type        = number
-  description = "Host port for the Horde gRPC channel."
-  default     = 5002
+  description = "Host port for the Horde gRPC (HTTP/2) channel. Matches Horde's standard Http2Port=8080 so agents and the dedicated ALB listener use the same port end-to-end."
+  default     = 8080
+}
+
+variable "alb_https_ingress_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks allowed to reach the external Horde ALB on HTTPS (port 443). Defaults to 0.0.0.0/0 since the ALB terminates TLS and Horde handles auth."
+  default     = ["0.0.0.0/0"]
+}
+
+variable "alb_grpc_ingress_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks allowed to reach the external Horde ALB on the gRPC port. Defaults to 0.0.0.0/0 so agents anywhere can enroll."
+  default     = ["0.0.0.0/0"]
 }
 
 ########################################

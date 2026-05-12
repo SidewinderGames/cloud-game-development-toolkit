@@ -127,6 +127,37 @@ resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inboun
   ip_protocol                  = "tcp"
 }
 
+resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inbound_public_https" {
+  for_each          = var.create_external_alb ? toset(var.alb_https_ingress_cidrs) : []
+  security_group_id = aws_security_group.unreal_horde_external_alb_sg[0].id
+  description       = "Allow HTTPS browser/admin access to Horde via the external ALB."
+  cidr_ipv4         = each.value
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inbound_http_redirect" {
+  for_each          = var.create_external_alb ? toset(var.alb_https_ingress_cidrs) : []
+  security_group_id = aws_security_group.unreal_horde_external_alb_sg[0].id
+  description       = "Allow plain HTTP so the ALB 80->443 redirect listener is reachable."
+  cidr_ipv4         = each.value
+  from_port         = 80
+  to_port           = 80
+  ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "unreal_horde_external_alb_inbound_grpc_public" {
+  for_each          = var.create_external_alb ? toset(var.alb_grpc_ingress_cidrs) : []
+  security_group_id = aws_security_group.unreal_horde_external_alb_sg[0].id
+  description       = "Allow public agent gRPC (HTTP/2) ingress to Horde on its dedicated port."
+  cidr_ipv4         = each.value
+  from_port         = var.container_grpc_port
+  to_port           = var.container_grpc_port
+  ip_protocol       = "tcp"
+}
+
+
 resource "aws_vpc_security_group_ingress_rule" "unreal_horde_agents_inbound_agents" {
   count                        = length(var.agents) > 0 ? 1 : 0
   security_group_id            = aws_security_group.unreal_horde_agent_sg[0].id
