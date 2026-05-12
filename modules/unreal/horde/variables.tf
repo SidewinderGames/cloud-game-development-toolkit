@@ -235,14 +235,18 @@ variable "s3_force_destroy" {
 
 variable "s3_artifact_transition_ia_days" {
   type        = number
-  description = "Days after which artifacts transition to S3 Standard-IA."
-  default     = 7
+  description = "Days after which artifacts transition to S3 Standard-IA. AWS requires this to be at least 30 days for the STANDARD_IA storage class."
+  default     = 30
+  validation {
+    condition     = var.s3_artifact_transition_ia_days >= 30
+    error_message = "s3_artifact_transition_ia_days must be >= 30 (AWS STANDARD_IA minimum)."
+  }
 }
 
 variable "s3_artifact_transition_glacier_days" {
   type        = number
-  description = "Days after which artifacts transition to Glacier Instant Retrieval."
-  default     = 30
+  description = "Days after which artifacts transition to Glacier Instant Retrieval. Must be >= 30 days after the IA transition (so >= 60 by default) for AWS to accept the lifecycle policy."
+  default     = 60
 }
 
 variable "s3_artifact_expiration_days" {
