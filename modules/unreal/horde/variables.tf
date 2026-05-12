@@ -83,8 +83,8 @@ variable "image" {
 
 variable "horde_host_instance_type" {
   type        = string
-  description = "EC2 instance type for the Horde all-in-one host."
-  default     = "t4g.medium"
+  description = "EC2 instance type for the Horde all-in-one host. Must be amd64 (t3/t3a/m5/c5 families) - the Horde server image is amd64-only."
+  default     = "t3.medium"
 }
 
 variable "horde_host_ami_id" {

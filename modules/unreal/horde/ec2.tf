@@ -2,13 +2,17 @@ data "aws_ami" "horde_host" {
   most_recent = true
   owners      = ["amazon"]
 
+  # Horde server image (ghcr.io/epicgames/horde-server:*-bundled) is published
+  # linux/amd64 only, so the host must be amd64. Pinning to t4g/Graviton AMIs
+  # here would CrashLoop the container with "exec /usr/bin/dotnet: exec
+  # format error". Keep instance_types in line with this (t3/t3a/m5).
   filter {
     name   = "name"
-    values = ["al2023-ami-2023*-arm64"]
+    values = ["al2023-ami-2023*-x86_64"]
   }
   filter {
     name   = "architecture"
-    values = ["arm64"]
+    values = ["x86_64"]
   }
   filter {
     name   = "virtualization-type"
