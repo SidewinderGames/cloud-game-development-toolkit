@@ -91,6 +91,34 @@ locals {
       name  = "Horde__Plugins__Compute__AwsRegions__0"
       value = length(var.agents) > 0 ? data.aws_region.current.id : null
     },
+    {
+      name  = "Horde__ServerUrl"
+      value = var.horde_server_url != null ? var.horde_server_url : "https://${var.fully_qualified_domain_name}"
+    },
+    {
+      name  = "Horde__DashboardUrl"
+      value = var.horde_server_url != null ? var.horde_server_url : "https://${var.fully_qualified_domain_name}"
+    },
+    {
+      name  = "Horde__ConfigPath"
+      value = var.horde_config_path
+    },
+    {
+      name  = "Horde__Perforce__0__Id"
+      value = var.p4_port != null ? "Default" : null
+    },
+    {
+      name  = "Horde__UseLocalPerforceEnv"
+      value = tostring(var.use_local_perforce_env)
+    },
+    {
+      name  = "Horde__Telemetry__0__Type"
+      value = var.telemetry_type
+    },
+    {
+      name  = "Horde__Telemetry__0__RetainDays"
+      value = var.telemetry_retain_days != null ? tostring(var.telemetry_retain_days) : null
+    },
   ] : config.value != null ? config : null]
 
   horde_service_secrets = {

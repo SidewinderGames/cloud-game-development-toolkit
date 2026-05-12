@@ -22,8 +22,13 @@ module "horde" {
   p4_super_user_username_secret_arn = var.p4_super_user_username_secret_arn
   p4_super_user_password_secret_arn = var.p4_super_user_password_secret_arn
 
-  auth_method                  = "Anonymous"
+  auth_method                  = "Horde"
   enable_new_agents_by_default = true
+
+  horde_config_path      = "//UE5/AgeOfTyrants/AgeOfTyrants/Build/Horde/globals.json"
+  use_local_perforce_env = false
+  telemetry_type         = "Mongo"
+  telemetry_retain_days  = 1
 
   create_unreal_horde_recycle_policy = true
   create_s3_storage_bucket           = true

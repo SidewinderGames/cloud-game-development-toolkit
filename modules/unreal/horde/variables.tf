@@ -415,3 +415,41 @@ variable "enable_new_agents_by_default" {
   description = "Auto-enable agents on first enrollment."
   default     = false
 }
+
+########################################
+# HORDE CONFIG / TELEMETRY
+########################################
+
+variable "horde_config_path" {
+  type        = string
+  description = "Path to globals.json. Typically a P4 path under the Default cluster (e.g. //UE5/AgeOfTyrants/AgeOfTyrants/Build/Horde/globals.json) so the rest of the Horde config lives in source control. Null disables the env var (Horde runs without a config path)."
+  default     = null
+}
+
+variable "horde_server_url" {
+  type        = string
+  description = "Public URL for the Horde server. Sets Horde__ServerUrl and Horde__DashboardUrl. If null, derived from fully_qualified_domain_name as https://<fqdn>."
+  default     = null
+}
+
+variable "use_local_perforce_env" {
+  type        = bool
+  description = "Whether Horde reads P4 settings from the host's P4CONFIG/P4 env. Set false when Perforce wiring comes from module env vars and Secrets Manager."
+  default     = true
+}
+
+variable "telemetry_type" {
+  type        = string
+  description = "Backend used by Horde's telemetry plugin (per-server-config Telemetry[0].Type)."
+  default     = null
+  validation {
+    condition     = var.telemetry_type == null || contains(["Mongo", "Null", "ClickHouse"], var.telemetry_type)
+    error_message = "telemetry_type must be one of: Mongo, Null, ClickHouse."
+  }
+}
+
+variable "telemetry_retain_days" {
+  type        = number
+  description = "Days of telemetry data to retain (Telemetry[0].RetainDays)."
+  default     = null
+}
