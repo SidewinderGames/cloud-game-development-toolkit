@@ -469,3 +469,9 @@ variable "telemetry_retain_days" {
   description = "Days of telemetry data to retain (Telemetry[0].RetainDays)."
   default     = null
 }
+
+variable "enable_ecr_pull" {
+  type        = bool
+  description = "Attach the AmazonEC2ContainerRegistryReadOnly managed policy to the Horde host role so it can pull images from private ECR. Set to true when var.image points at an ECR URL."
+  default     = false
+}

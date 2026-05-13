@@ -38,10 +38,18 @@ chmod 700 /var/lib/horde-data/mongo
 
 mkdir -p /etc/horde
 
-GHCR_JSON=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$GHCR_SECRET_ARN" --query SecretString --output text)
-GHCR_USER=$(echo "$GHCR_JSON" | jq -r .username)
-GHCR_PASS=$(echo "$GHCR_JSON" | jq -r .password)
-echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+if [ -n "$GHCR_SECRET_ARN" ]; then
+  GHCR_JSON=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$GHCR_SECRET_ARN" --query SecretString --output text)
+  GHCR_USER=$(echo "$GHCR_JSON" | jq -r .username)
+  GHCR_PASS=$(echo "$GHCR_JSON" | jq -r .password)
+  echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+fi
+
+# Log in to ECR for private image pulls (no-op if the image is not on ECR; needs ECR read role)
+ECR_REGISTRY=$(echo "${horde_image}" | awk -F/ '{print $1}')
+if echo "$ECR_REGISTRY" | grep -q '\.dkr\.ecr\.'; then
+  aws --region "$REGION" ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+fi
 
 MONGO_PWD=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$MONGO_PWD_SECRET_ARN" --query SecretString --output text)
 

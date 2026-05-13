@@ -15,6 +15,9 @@ module "horde" {
   horde_data_volume_size   = var.horde_data_volume_size
   admin_cidrs              = var.admin_cidrs
 
+  image           = "${aws_ecr_repository.horde_server.repository_url}:${var.horde_image_tag}"
+  enable_ecr_pull = true
+
   github_credentials_secret_arn = var.github_credentials_secret_arn
   fully_qualified_domain_name   = "horde.${var.route53_subdomain_zone_name}"
 

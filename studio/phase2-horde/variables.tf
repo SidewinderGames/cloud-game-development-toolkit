@@ -56,6 +56,12 @@ variable "horde_host_instance_type" {
   default     = "t3.medium"
 }
 
+variable "horde_image_tag" {
+  description = "Tag of the Horde Server image in the Sidewinder ECR repository. Bump after pushing a new build (e.g. \"5.7.4\")."
+  type        = string
+  default     = "5.7.4"
+}
+
 variable "horde_data_volume_size" {
   description = "Size in GiB of the Horde data EBS volume (Mongo, Redis, server state)."
   type        = number

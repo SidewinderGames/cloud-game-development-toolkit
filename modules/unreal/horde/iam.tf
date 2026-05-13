@@ -155,6 +155,12 @@ resource "aws_iam_role_policy_attachment" "unreal_horde_secrets_manager_policy_a
   policy_arn = aws_iam_policy.unreal_horde_secrets_manager_policy[0].arn
 }
 
+resource "aws_iam_role_policy_attachment" "unreal_horde_ecr_attachment" {
+  count      = var.enable_ecr_pull ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 resource "aws_iam_instance_profile" "horde_host" {
   name = "${var.project_prefix}-unreal_horde-host-profile"
   role = aws_iam_role.unreal_horde_default_role[0].name

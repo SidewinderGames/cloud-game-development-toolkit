@@ -80,7 +80,7 @@ resource "aws_instance" "horde_host" {
 
   user_data = base64encode(templatefile("${path.module}/templates/horde_host_user_data.sh.tftpl", {
     region                            = data.aws_region.current.id
-    ghcr_credentials_secret_arn       = var.github_credentials_secret_arn
+    ghcr_credentials_secret_arn       = var.github_credentials_secret_arn == null ? "" : var.github_credentials_secret_arn
     mongo_username                    = var.mongo_username
     mongo_password_secret_arn         = aws_secretsmanager_secret.mongo.arn
     p4_super_user_username_secret_arn = var.p4_super_user_username_secret_arn == null ? "" : var.p4_super_user_username_secret_arn
