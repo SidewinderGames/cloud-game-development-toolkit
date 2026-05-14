@@ -45,9 +45,24 @@ if [ -n "$GHCR_SECRET_ARN" ]; then
   echo "$GHCR_PASS" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 fi
 
-# Log in to ECR for private image pulls (no-op if the image is not on ECR; needs ECR read role)
+# Install amazon-ecr-credential-helper and wire it into docker config so
+# docker pulls from ECR auto-refresh the auth token. Without this, the
+# 12h ECR token expires and any subsequent `docker compose pull` (e.g.
+# the one in horde-compose.service on boot) fails with "authorization
+# token has expired", leaving the container stack down until someone
+# re-runs ecr get-login-password by hand.
 ECR_REGISTRY=$(echo "${horde_image}" | awk -F/ '{print $1}')
 if echo "$ECR_REGISTRY" | grep -q '\.dkr\.ecr\.'; then
+  dnf install -y amazon-ecr-credential-helper
+  mkdir -p /root/.docker
+  cat >/root/.docker/config.json <<EOF
+{
+  "credHelpers": {
+    "$${ECR_REGISTRY}": "ecr-login"
+  }
+}
+EOF
+  # Prime the cache so the first pull doesn't pay the IMDS round trip
   aws --region "$REGION" ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 fi
 
