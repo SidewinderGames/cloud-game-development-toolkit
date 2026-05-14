@@ -42,7 +42,15 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
 
   user_data = data.aws_ami.unreal_horde_agent_ami[each.key].platform == "windows" ? local.unreal_horde_agent_userdata_windows : null
 
-  vpc_security_group_ids = [aws_security_group.unreal_horde_agent_sg[0].id]
+  # Agent subnets are public (route to IGW) but the subnet's MapPublicIpOnLaunch
+  # is false, and the user_data needs to reach the Horde server + SSM. Force a
+  # public IP via the network interface; doing so requires moving security
+  # groups onto the interface and dropping the top-level vpc_security_group_ids.
+  network_interfaces {
+    associate_public_ip_address = true
+    device_index                = 0
+    security_groups             = [aws_security_group.unreal_horde_agent_sg[0].id]
+  }
 
   private_dns_name_options {
     hostname_type = "resource-name"
