@@ -47,3 +47,42 @@ resource "aws_route53_record" "p4_server" {
   ttl     = 300
   records = [module.perforce.p4_server_eip_public_ip]
 }
+
+###############################################################
+# Private split-horizon zone for in-VPC name resolution.
+#
+# Horde agents (Phase 2) need to reach the P4 server on tcp/1666
+# via the public FQDN p4.studio.sidewinder.dev, but routing through
+# the public IP loses the source SG context for SG-to-SG rules.
+# Agent traffic hits the P4 SG as its public IP and gets dropped.
+#
+# A private hosted zone for the same domain, associated with our
+# VPC, makes in-VPC clients resolve the FQDN to the P4 instance's
+# PRIVATE IP. Traffic then stays inside the VPC and the SG-to-SG
+# rule on port 1666 matches, no public hairpinning involved.
+#
+# External clients (laptops, build farms outside the VPC) keep
+# resolving via the public zone -> public IP -> EIP. Same FQDN,
+# split-horizon answers.
+###############################################################
+resource "aws_route53_zone" "studio_private" {
+  name = var.route53_subdomain_zone_name
+
+  vpc {
+    vpc_id = aws_vpc.studio.id
+  }
+
+  comment = "Split-horizon private zone for in-VPC name resolution (P4 agent ingress fix)"
+
+  tags = {
+    Studio = "Sidewinder"
+  }
+}
+
+resource "aws_route53_record" "p4_server_private" {
+  zone_id = aws_route53_zone.studio_private.zone_id
+  name    = local.p4_server_fqdn
+  type    = "A"
+  ttl     = 60
+  records = [module.perforce.p4_server_private_ip]
+}
