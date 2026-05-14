@@ -64,7 +64,8 @@ resource "aws_launch_template" "unreal_horde_agent_template" {
         Name = "${each.key} Horde Agent"
       },
       each.value.horde_pool_name != null ? {
-        Horde_Autoscale_Pool = each.value.horde_pool_name
+        Horde_Autoscale_Pool   = each.value.horde_pool_name
+        Horde_Autoscale_PoolId = each.value.horde_pool_name
       } : {},
     )
   }
@@ -113,6 +114,12 @@ resource "aws_autoscaling_group" "unreal_horde_agent_asg" {
 
   tag {
     key                 = "Horde_Autoscale_Pool"
+    value               = each.value.horde_pool_name == null ? each.key : each.value.horde_pool_name
+    propagate_at_launch = false
+  }
+
+  tag {
+    key                 = "Horde_Autoscale_PoolId"
     value               = each.value.horde_pool_name == null ? each.key : each.value.horde_pool_name
     propagate_at_launch = false
   }
