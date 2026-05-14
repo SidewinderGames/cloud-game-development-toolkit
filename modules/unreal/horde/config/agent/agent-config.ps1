@@ -31,8 +31,14 @@ Read-S3Object -BucketName ${p4_trust_bucket} -Key agent/.p4trust -File $hordedir
 
 # Configure and start the agent
 & "$hordedir\HordeAgent.exe" SetServer -Default -Url="https://${fully_qualified_domain_name}"
-& "$hordedir\HordeAgent.exe" Service Install -Start=false
 
-# Schedule a reboot in 5 minutes
-shutdown /r /d p:4:2 /t $(60*5)
+# Install AND start the agent service. Previous version used -Start=false +
+# a scheduled reboot to apply the Rename-Computer change; the reboot was
+# unreliable (script sometimes exited before the shutdown command), so the
+# agent service would sit installed-but-stopped indefinitely. Starting it
+# now means the agent registers with Horde immediately; the hostname
+# rename takes effect on the next routine reboot, which is fine because
+# the agent reports its identity via appsettings.User.json "Name", not
+# the OS hostname.
+& "$hordedir\HordeAgent.exe" Service Install -Start=true
 </powershell>

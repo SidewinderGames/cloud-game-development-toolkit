@@ -25,8 +25,8 @@ module "horde" {
   p4_super_user_username_secret_arn = var.p4_super_user_username_secret_arn
   p4_super_user_password_secret_arn = var.p4_super_user_password_secret_arn
 
-  auth_method                  = "Horde"
-  enable_new_agents_by_default = true
+  auth_method        = "Horde"
+  auto_enroll_agents = true
 
   horde_config_path      = "//UE5/AgeOfTyrants/AgeOfTyrants/Build/Horde/globals.json"
   use_local_perforce_env = false

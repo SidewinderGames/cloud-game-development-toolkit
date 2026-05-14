@@ -55,9 +55,14 @@ locals {
       name  = "Horde__adminClaimValue"
       value = var.admin_claim_value
     },
+    # NOTE: Horde__enableNewAgentsByDefault is defined in ServerSettings.cs
+    # but unused anywhere in the codebase. The real auto-approve flag is
+    # Horde:Plugins:Compute:AutoEnrollAgents, wired below. Without it, every
+    # agent that registers sits in Agent Enrollment waiting for a human to
+    # click "Approve" - fine for static fleets, broken for ASGs.
     {
-      name  = "Horde__enableNewAgentsByDefault",
-      value = tostring(var.enable_new_agents_by_default)
+      name  = "Horde__Plugins__Compute__AutoEnrollAgents"
+      value = tostring(var.auto_enroll_agents)
     },
     {
       name  = "Horde__Perforce__0__ServerAndPort"

@@ -426,9 +426,9 @@ variable "fully_qualified_domain_name" {
   description = "FQDN where Horde will be reachable. Agents enroll against this."
 }
 
-variable "enable_new_agents_by_default" {
+variable "auto_enroll_agents" {
   type        = bool
-  description = "Auto-enable agents on first enrollment."
+  description = "Auto-approve agents the moment they call RegisterAgent. Wires the Horde:Plugins:Compute:AutoEnrollAgents env var, which is the real auto-approve flag (see EnrollmentService.cs:113). Required for ASG-managed agent fleets; without it every scale-out instance sits in Agent Enrollment waiting for a human."
   default     = false
 }
 
