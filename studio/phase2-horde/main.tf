@@ -69,7 +69,7 @@ module "horde" {
         on_demand_base_capacity                  = 0
         on_demand_percentage_above_base_capacity = 0
         spot_allocation_strategy                 = "capacity-optimized"
-        min_size                                 = 0
+        min_size                                 = var.windows_agent_min_size
         max_size                                 = var.windows_agent_max_size
         block_device_mappings = [
           {

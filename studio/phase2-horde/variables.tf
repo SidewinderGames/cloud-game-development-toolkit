@@ -100,10 +100,16 @@ variable "windows_agent_ami_id" {
   default     = ""
 }
 
-variable "windows_agent_max_size" {
-  description = "Maximum number of Windows Spot build agents to launch concurrently."
+variable "windows_agent_min_size" {
+  description = "Minimum (and always-on) number of Windows Spot build agents. Must be >= 1 so Horde's JobTaskSource doesn't immediately skip queued batches with NoAgentsInPool (chicken-and-egg: AwsAsg can't scale from 0 because batches die before JobQueue strategy ticks). Capped to 1 during testing to control burn; raise once AMI bake pipeline lands."
   type        = number
-  default     = 2
+  default     = 1
+}
+
+variable "windows_agent_max_size" {
+  description = "Maximum number of Windows Spot build agents to launch concurrently. Set to 1 during testing - JobQueue strategy will not scale out beyond this, so additional queued jobs wait. Raise to enable real autoscaling."
+  type        = number
+  default     = 1
 }
 
 variable "windows_agent_workspace_size_gib" {
@@ -119,9 +125,9 @@ variable "windows_agent_pool_name" {
 }
 
 variable "windows_agent_instance_types" {
-  description = "Instance types the Windows ASG will request via mixed_instances_policy. Spot capacity-optimized picks the cheapest currently available. c7a.4xlarge is the cost/perf sweet spot for UE compile + link on AMD Zen 4."
+  description = "Instance types the Windows ASG will request via mixed_instances_policy. Listed in priority order; spot capacity-optimized picks the cheapest currently available. During Horde testing we lead with c7a.xlarge spot (~$0.04/hr) so the always-warm agent is cheap; production should put compile-grade c7a.4xlarge / c7i.4xlarge first."
   type        = list(string)
-  default     = ["c7a.4xlarge", "c7i.4xlarge", "m7a.4xlarge"]
+  default     = ["c7a.xlarge", "m7a.xlarge", "c7i.xlarge", "c7a.2xlarge"]
 }
 
 variable "tags" {
