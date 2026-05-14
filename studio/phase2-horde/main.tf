@@ -71,6 +71,7 @@ module "horde" {
         spot_allocation_strategy                 = "capacity-optimized"
         min_size                                 = var.windows_agent_min_size
         max_size                                 = var.windows_agent_max_size
+        warm_pool_min_size                       = var.windows_agent_warm_pool_size
         block_device_mappings = [
           {
             # Windows AMIs use /dev/sda1 as root too

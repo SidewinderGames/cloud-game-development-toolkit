@@ -101,13 +101,19 @@ variable "windows_agent_ami_id" {
 }
 
 variable "windows_agent_min_size" {
-  description = "Minimum (and always-on) number of Windows Spot build agents. Must be >= 1 so Horde's JobTaskSource doesn't immediately skip queued batches with NoAgentsInPool (chicken-and-egg: AwsAsg can't scale from 0 because batches die before JobQueue strategy ticks). Capped to 1 during testing to control burn; raise once AMI bake pipeline lands."
+  description = "Minimum always-running Windows agents. With the warm pool below, this can stay at 0 - the warm pool's stopped instances keep the agent records present in Horde Mongo (HasAgents=true) so JobTaskSource dispatches batches, and AwsAsg scale-out starts a stopped instance instead of paying for an always-warm one."
+  type        = number
+  default     = 0
+}
+
+variable "windows_agent_max_size" {
+  description = "Maximum number of Windows Spot build agents in service concurrently. Set to 1 during testing - JobQueue strategy will not scale out beyond this, so additional queued jobs wait. Raise to enable real autoscaling."
   type        = number
   default     = 1
 }
 
-variable "windows_agent_max_size" {
-  description = "Maximum number of Windows Spot build agents to launch concurrently. Set to 1 during testing - JobQueue strategy will not scale out beyond this, so additional queued jobs wait. Raise to enable real autoscaling."
+variable "windows_agent_warm_pool_size" {
+  description = "Number of pre-bootstrapped Windows agent instances to keep in the ASG warm pool (Stopped state, EBS preserved). One is enough to fix Horde's scale-from-0 chicken-egg and give a ~30s cold start instead of ~15min. Each instance costs only its EBS (~$82/mo for 1024 GiB gp3 workspace, no compute while stopped)."
   type        = number
   default     = 1
 }

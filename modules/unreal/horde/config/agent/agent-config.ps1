@@ -41,4 +41,15 @@ Read-S3Object -BucketName ${p4_trust_bucket} -Key agent/.p4trust -File $hordedir
 # the agent reports its identity via appsettings.User.json "Name", not
 # the OS hostname.
 & "$hordedir\HordeAgent.exe" Service Install -Start=true
+
+# Give the agent a chance to register and auto-enroll with Horde before
+# this script returns. cloud-init signals "done" to AWS as soon as we
+# exit, and if the instance is being launched into a warm pool, AWS
+# will then stop the OS. Without this wait the registration RPC may
+# get cut off mid-flight, the agent never gets a record in Mongo, and
+# the warm pool ends up with an unregistered stopped instance that
+# doesn't satisfy HasAgents. 90s is enough for the agent's RPC retry
+# loop (10s intervals) to complete a successful RegisterAgent and the
+# server-side EnrollmentService.AddAsync to auto-approve.
+Start-Sleep -Seconds 90
 </powershell>

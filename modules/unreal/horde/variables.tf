@@ -410,6 +410,16 @@ variable "agents" {
     }))
     min_size = optional(number, 0)
     max_size = optional(number, 1)
+
+    # Optional ASG warm pool. When warm_pool_min_size > 0, the module
+    # creates aws_autoscaling_warm_pool with pool_state=Stopped and
+    # reuse_on_scale_in=true. Pre-bootstrapped instances sit Stopped,
+    # preserving the agent registration (HasAgents stays true so jobs
+    # dispatch) and the EBS workspace (cheap warm-recycle). On
+    # scale-out, AWS starts a stopped instance instead of launching
+    # fresh - ~30s vs ~15min cold launch.
+    warm_pool_min_size = optional(number, 0)
+    warm_pool_max_size = optional(number)
   }))
   description = "Map of agent pools. Each entry becomes an ASG using mixed_instances_policy across instance_types. Default behavior is 100% Spot, capacity-optimized."
   default     = {}

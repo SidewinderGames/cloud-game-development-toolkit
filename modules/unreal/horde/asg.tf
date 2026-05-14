@@ -149,6 +149,33 @@ resource "aws_autoscaling_group" "unreal_horde_agent_asg" {
   depends_on = [aws_instance.horde_host]
 }
 
+# Optional warm pool of stopped instances. Each pre-bootstrapped instance
+# keeps its EBS workspace + agent registration record across stop/start
+# cycles. On scale-out, AWS starts a stopped warm-pool instance (~30s)
+# instead of launching a fresh one (~10-15 min). On scale-in,
+# reuse_on_scale_in returns the instance to the warm pool stopped rather
+# than terminating, so the workspace stays warm for the next job.
+#
+# This also fixes Horde's chicken-and-egg around JobTaskSource skipping
+# batches when HasAgents=false. A stopped warm-pool instance still has
+# its agent record in Mongo (just offline), so HasAgents stays true and
+# the JobQueue strategy can fire AwsAsg scale-out.
+resource "aws_autoscaling_warm_pool" "unreal_horde_agent_warm_pool" {
+  for_each = {
+    for k, v in var.agents : k => v
+    if v.create_asg && try(v.warm_pool_min_size, 0) > 0
+  }
+
+  auto_scaling_group_name = aws_autoscaling_group.unreal_horde_agent_asg[each.key].name
+  pool_state              = "Stopped"
+  min_size                = each.value.warm_pool_min_size
+  max_group_prepared_capacity = try(each.value.warm_pool_max_size, each.value.max_size)
+
+  instance_reuse_policy {
+    reuse_on_scale_in = true
+  }
+}
+
 data "aws_iam_policy_document" "ec2_trust_relationship" {
   count = length(var.agents) > 0 ? 1 : 0
   statement {
