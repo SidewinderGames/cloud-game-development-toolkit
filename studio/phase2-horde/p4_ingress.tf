@@ -29,7 +29,7 @@ resource "aws_vpc_security_group_ingress_rule" "agent_to_p4" {
   ip_protocol                  = "tcp"
   from_port                    = 1666
   to_port                      = 1666
-  description                  = "Horde agent ASG to P4 commit (Phase 2 -> Phase 1)"
+  description                  = "Horde agent ASG to P4 commit (Phase 2 to Phase 1)"
 
   tags = var.tags
 }
