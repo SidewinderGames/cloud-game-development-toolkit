@@ -80,10 +80,14 @@ module "horde" {
         max_size                                 = var.windows_agent_max_size
         block_device_mappings = [
           {
-            # Smaller root volume; workspace + Horde install live on the data volume.
+            # Match the Windows AMI's baked-in root snapshot size (256 GiB);
+            # smaller values fail launch with InvalidBlockDeviceMapping. The
+            # workspace itself still lives on the AwsAsgWithDataVolumes data
+            # volume; this root only holds the OS, Horde agent install,
+            # Chocolatey deps, etc.
             device_name = "/dev/sda1"
             ebs = {
-              volume_size = 100
+              volume_size = 256
               volume_type = "gp3"
             }
           }
