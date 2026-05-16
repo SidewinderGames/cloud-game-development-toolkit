@@ -103,6 +103,17 @@ locals {
       name  = "Horde__Plugins__Compute__AwsAutoScalingQueueUrls__0"
       value = length(var.agents) > 0 ? aws_sqs_queue.asg_lifecycle[0].url : null
     },
+    # Tell the Horde server's P4 client where to find its trust file. The
+    # horde container mounts /var/lib/horde-data/horde at /app/Data, and the
+    # user-data writes the trust file there (both DNS-form and IP-form
+    # entries so SSL connections via p4.studio.sidewinder.dev or the private
+    # IP both verify). Without this, the P4 client falls back to ~/.p4trust
+    # which isn't populated, and every cluster health check fails with
+    # "authenticity of host can't be established".
+    {
+      name  = "P4TRUST"
+      value = var.p4_port != null ? "/app/Data/.p4trust" : null
+    },
     {
       name  = "Horde__ServerUrl"
       value = var.horde_server_url != null ? var.horde_server_url : "https://${var.fully_qualified_domain_name}"
