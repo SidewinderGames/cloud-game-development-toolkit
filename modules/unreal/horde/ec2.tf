@@ -105,10 +105,25 @@ resource "aws_instance" "horde_host" {
   user_data_replace_on_change = false
 
   tags = merge(local.tags, {
-    Name = "${local.name_prefix}-host"
+    Name      = "${local.name_prefix}-host"
+    HordeImage = var.image
   })
 
+  # Replace the host when var.image changes so user-data re-renders
+  # /etc/horde/docker-compose.yml against the new tag. Without this,
+  # bumping horde_image_tag in tfvars only updates the in-memory variable
+  # while the on-disk compose file (and thus the running container) stays
+  # pinned to whatever tag the instance was created with.
   lifecycle {
     ignore_changes = [ami]
+    replace_triggered_by = [
+      null_resource.horde_image_replace_trigger
+    ]
+  }
+}
+
+resource "null_resource" "horde_image_replace_trigger" {
+  triggers = {
+    image = var.image
   }
 }
