@@ -62,8 +62,13 @@ if echo "$ECR_REGISTRY" | grep -q '\.dkr\.ecr\.'; then
   }
 }
 EOF
-  # Prime the cache so the first pull doesn't pay the IMDS round trip
-  aws --region "$REGION" ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+  # Prime the cache so the first pull doesn't pay the IMDS round trip.
+  # Tolerate failure: the helper's Store returns "not implemented" (by design - it
+  # fetches fresh tokens via IMDS rather than caching), which makes `docker login`
+  # exit non-zero even though auth succeeded. Without `|| true` this aborts the
+  # whole user-data script under `set -e`, leaving the host with no /etc/horde/*
+  # files and no compose stack.
+  aws --region "$REGION" ecr get-login-password | docker login --username AWS --password-stdin "$ECR_REGISTRY" || true
 fi
 
 MONGO_PWD=$(aws --region "$REGION" secretsmanager get-secret-value --secret-id "$MONGO_PWD_SECRET_ARN" --query SecretString --output text)
