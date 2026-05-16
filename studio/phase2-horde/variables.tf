@@ -57,9 +57,9 @@ variable "horde_host_instance_type" {
 }
 
 variable "horde_image_tag" {
-  description = "Tag of the Horde Server image in the Sidewinder ECR repository. Bump after pushing a new build (e.g. \"5.7.4\")."
+  description = "Tag of the Horde Server image in the Sidewinder ECR repository. Bump after pushing a new build (e.g. \"5.7.4-datavol1\")."
   type        = string
-  default     = "5.7.4"
+  default     = "5.7.4-datavol1"
 }
 
 variable "horde_data_volume_size" {
@@ -81,9 +81,15 @@ variable "agent_max_size" {
 }
 
 variable "agent_workspace_size_gib" {
-  description = "Size in GiB of each Linux Spot agent's workspace volume."
+  description = "Size in GiB of the Linux pool data volume (per AZ). Includes UE source + Setup.sh binaries + build intermediates."
   type        = number
   default     = 1024
+}
+
+variable "agent_data_volume_snapshot_id" {
+  description = "Seed snapshot ID for the Linux pool's data volume. See windows_agent_data_volume_snapshot_id."
+  type        = string
+  default     = null
 }
 
 variable "agent_pool_name" {
@@ -101,7 +107,7 @@ variable "windows_agent_ami_id" {
 }
 
 variable "windows_agent_min_size" {
-  description = "Minimum always-running Windows agents. With the warm pool below, this can stay at 0 - the warm pool's stopped instances keep the agent records present in Horde Mongo (HasAgents=true) so JobTaskSource dispatches batches, and AwsAsg scale-out starts a stopped instance instead of paying for an always-warm one."
+  description = "Minimum always-running Windows agents. Defaults to 0; the AwsAsgWithDataVolumes fleet strategy attaches the pool's persistent EBS data volume on cold start, eliminating the need to keep an instance running."
   type        = number
   default     = 0
 }
@@ -112,16 +118,16 @@ variable "windows_agent_max_size" {
   default     = 1
 }
 
-variable "windows_agent_warm_pool_size" {
-  description = "Number of pre-bootstrapped Windows agent instances to keep in the ASG warm pool (Stopped state, EBS preserved). One is enough to fix Horde's scale-from-0 chicken-egg and give a ~30s cold start instead of ~15min. Each instance costs only its EBS (~$82/mo for 1024 GiB gp3 workspace, no compute while stopped)."
-  type        = number
-  default     = 1
-}
-
 variable "windows_agent_workspace_size_gib" {
-  description = "Size in GiB of each Windows agent's workspace volume. Windows + UE source + Setup.bat binaries + build intermediates need >= 512 GiB; 1024 leaves room."
+  description = "Size in GiB of the Windows pool data volume (per AZ). Windows + UE source + Setup.bat binaries + build intermediates need >= 512 GiB; 1024 leaves room."
   type        = number
   default     = 1024
+}
+
+variable "windows_agent_data_volume_snapshot_id" {
+  description = "Seed snapshot ID for the Windows pool's data volume. When a new instance launches in an AZ that has no free volume, the AwsAsgWithDataVolumes fleet strategy creates a fresh volume from this snapshot - skipping the cold P4 sync. Refresh periodically (see Engine/Source/Programs/Horde/Docs/Internals/AwsAsgWithDataVolumes.md). Leave null for the first deployment; the first launch creates an empty volume that pays a full sync once."
+  type        = string
+  default     = null
 }
 
 variable "windows_agent_pool_name" {

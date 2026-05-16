@@ -411,15 +411,22 @@ variable "agents" {
     min_size = optional(number, 0)
     max_size = optional(number, 1)
 
-    # Optional ASG warm pool. When warm_pool_min_size > 0, the module
-    # creates aws_autoscaling_warm_pool with pool_state=Stopped and
-    # reuse_on_scale_in=true. Pre-bootstrapped instances sit Stopped,
-    # preserving the agent registration (HasAgents stays true so jobs
-    # dispatch) and the EBS workspace (cheap warm-recycle). On
-    # scale-out, AWS starts a stopped instance instead of launching
-    # fresh - ~30s vs ~15min cold launch.
-    warm_pool_min_size = optional(number, 0)
-    warm_pool_max_size = optional(number)
+    # Optional per-pool EBS data volume that the AwsAsgWithDataVolumes fleet
+    # strategy attaches to each launched instance and detaches on scale-in.
+    # When set, the module wires lifecycle hooks on the ASG so a server-side
+    # service can attach a free volume (or create one from seed_snapshot_id)
+    # before the agent boots. Eliminates the need for warm pools.
+    # See Engine/Source/Programs/Horde/Docs/Internals/AwsAsgWithDataVolumes.md.
+    data_volume = optional(object({
+      size_gib            = number
+      volume_type         = optional(string, "gp3")
+      iops                = optional(number)
+      throughput_mibps    = optional(number)
+      device_name         = optional(string, "xvdf")
+      seed_snapshot_id    = optional(string)
+      create_if_missing   = optional(bool, true)
+      max_volumes_per_az  = optional(number, 8)
+    }))
   }))
   description = "Map of agent pools. Each entry becomes an ASG using mixed_instances_policy across instance_types. Default behavior is 100% Spot, capacity-optimized."
   default     = {}

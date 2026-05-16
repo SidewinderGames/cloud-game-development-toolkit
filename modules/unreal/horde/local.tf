@@ -96,6 +96,13 @@ locals {
       name  = "Horde__Plugins__Compute__AwsRegions__0"
       value = length(var.agents) > 0 ? data.aws_region.current.id : null
     },
+    # SQS queue the Horde server polls for ASG lifecycle events (used by the
+    # AwsAsgWithDataVolumes fleet strategy for launch-attach / terminate-detach
+    # of pool data volumes). Only set when there are agent pools.
+    {
+      name  = "Horde__Plugins__Compute__AwsAutoScalingQueueUrls__0"
+      value = length(var.agents) > 0 ? aws_sqs_queue.asg_lifecycle[0].url : null
+    },
     {
       name  = "Horde__ServerUrl"
       value = var.horde_server_url != null ? var.horde_server_url : "https://${var.fully_qualified_domain_name}"

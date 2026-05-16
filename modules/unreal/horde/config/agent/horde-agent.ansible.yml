@@ -5,7 +5,51 @@
   vars:
     horde_user_name: Horde
     horde_agent_dir: /home/Horde
+    # Block device the AwsAsgWithDataVolumes fleet strategy attaches the
+    # per-pool data volume as. Matches AwsDataVolumeSettings.DeviceName.
+    horde_data_device: xvdf
+    horde_data_mount: /workspace
   tasks:
+    # When the pool uses the AwsAsgWithDataVolumes fleet strategy, the ASG
+    # launching lifecycle hook attaches an EBS volume before this playbook
+    # runs. Wait for the device, format it if blank, mount it. Idempotent so
+    # the same volume can be reattached on the next launch and we just mount.
+    # When no data volume is attached (legacy plain-ASG pool), the wait step
+    # is skipped gracefully and the agent runs from $HOME.
+    - name: Probe for data volume device
+      ansible.builtin.stat:
+        path: "/dev/{{ horde_data_device }}"
+      register: horde_data_device_stat
+    - name: Wait for data volume device to appear
+      ansible.builtin.wait_for:
+        path: "/dev/{{ horde_data_device }}"
+        state: present
+        timeout: 300
+      when: horde_data_device_stat.stat.exists or lookup('env', 'HORDE_REQUIRE_DATA_VOLUME') == 'true'
+      ignore_errors: true
+    - name: Format data volume if blank
+      community.general.filesystem:
+        fstype: ext4
+        dev: "/dev/{{ horde_data_device }}"
+        opts: -L horde-data
+      when: horde_data_device_stat.stat.exists
+      register: horde_data_format_result
+      failed_when: false
+    - name: Mount data volume
+      ansible.posix.mount:
+        path: "{{ horde_data_mount }}"
+        src: "/dev/{{ horde_data_device }}"
+        fstype: ext4
+        state: mounted
+      when: horde_data_device_stat.stat.exists
+    - name: Set workspace ownership on data volume
+      ansible.builtin.file:
+        path: "{{ horde_data_mount }}"
+        owner: "{{ horde_user_name }}"
+        group: "{{ horde_user_name }}"
+        state: directory
+        mode: "0755"
+      when: horde_data_device_stat.stat.exists
     - name: Create Horde user
       ansible.builtin.user:
         name: "{{ horde_user_name }}"

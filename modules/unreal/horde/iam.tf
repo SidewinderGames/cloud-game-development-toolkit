@@ -44,9 +44,55 @@ data "aws_iam_policy_document" "unreal_horde_recycle_policy" {
       "autoscaling:SetDesiredCapacity",
       "autoscaling:UpdateAutoScalingGroup",
       "autoscaling:TerminateInstanceInAutoScalingGroup",
+      "autoscaling:CompleteLifecycleAction",
+      "autoscaling:RecordLifecycleActionHeartbeat",
     ]
     resources = ["*"]
   }
+
+  # EBS data volume orchestration for the AwsAsgWithDataVolumes fleet
+  # strategy. The Horde server creates, attaches, detaches, and tags
+  # per-pool EBS volumes via these APIs. DescribeVolumes is read-only
+  # and must be wildcard; the mutating operations could be tightened with
+  # a tag condition once the Horde:DataVolumePool tag is in use.
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeVolumes",
+      "ec2:CreateVolume",
+      "ec2:AttachVolume",
+      "ec2:DetachVolume",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+    ]
+    resources = ["*"]
+  }
+}
+
+data "aws_iam_policy_document" "unreal_horde_asg_lifecycle_sqs" {
+  count = length(var.agents) > 0 ? 1 : 0
+  statement {
+    effect = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+    ]
+    resources = [aws_sqs_queue.asg_lifecycle[0].arn]
+  }
+}
+
+resource "aws_iam_policy" "unreal_horde_asg_lifecycle_sqs" {
+  count       = length(var.agents) > 0 ? 1 : 0
+  name        = "${var.project_prefix}-unreal_horde-asg-lifecycle-sqs"
+  description = "Allow Horde server to consume ASG lifecycle events from the per-deployment SQS queue."
+  policy      = data.aws_iam_policy_document.unreal_horde_asg_lifecycle_sqs[0].json
+}
+
+resource "aws_iam_role_policy_attachment" "unreal_horde_asg_lifecycle_sqs" {
+  count      = length(var.agents) > 0 && var.create_unreal_horde_default_role ? 1 : 0
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+  policy_arn = aws_iam_policy.unreal_horde_asg_lifecycle_sqs[0].arn
 }
 
 data "aws_iam_policy_document" "unreal_horde_storage_policy" {

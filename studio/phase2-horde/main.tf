@@ -52,13 +52,20 @@ module "horde" {
         max_size                                 = var.agent_max_size
         block_device_mappings = [
           {
+            # Smaller root volume; the workspace lives on the AwsAsgWithDataVolumes data volume.
             device_name = "/dev/sda1"
             ebs = {
-              volume_size = var.agent_workspace_size_gib
+              volume_size = 80
               volume_type = "gp3"
             }
           }
         ]
+        data_volume = {
+          size_gib         = var.agent_workspace_size_gib
+          volume_type      = "gp3"
+          device_name      = "xvdf"
+          seed_snapshot_id = var.agent_data_volume_snapshot_id
+        }
       }
     },
     var.windows_agent_ami_id == "" ? {} : {
@@ -71,17 +78,22 @@ module "horde" {
         spot_allocation_strategy                 = "capacity-optimized"
         min_size                                 = var.windows_agent_min_size
         max_size                                 = var.windows_agent_max_size
-        warm_pool_min_size                       = var.windows_agent_warm_pool_size
         block_device_mappings = [
           {
-            # Windows AMIs use /dev/sda1 as root too
+            # Smaller root volume; workspace + Horde install live on the data volume.
             device_name = "/dev/sda1"
             ebs = {
-              volume_size = var.windows_agent_workspace_size_gib
+              volume_size = 100
               volume_type = "gp3"
             }
           }
         ]
+        data_volume = {
+          size_gib         = var.windows_agent_workspace_size_gib
+          volume_type      = "gp3"
+          device_name      = "xvdf"
+          seed_snapshot_id = var.windows_agent_data_volume_snapshot_id
+        }
       }
     }
   )
