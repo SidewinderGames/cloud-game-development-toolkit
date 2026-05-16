@@ -125,5 +125,10 @@ resource "aws_instance" "horde_host" {
 resource "null_resource" "horde_image_replace_trigger" {
   triggers = {
     image = var.image
+    # Force recreate when any horde server env var changes, since user-data
+    # only runs at first boot and /etc/horde/horde.env is captured then.
+    # Without this, adding a new env var in local.tf updates the launch
+    # template but leaves the running host with a stale env file.
+    horde_env = sha256(join("\n", [for e in local.horde_service_env : "${e.name}=${e.value}"]))
   }
 }
