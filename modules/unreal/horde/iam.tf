@@ -51,17 +51,24 @@ data "aws_iam_policy_document" "unreal_horde_recycle_policy" {
   }
 
   # EBS data volume orchestration for the AwsAsgWithDataVolumes fleet
-  # strategy. The Horde server creates, attaches, detaches, and tags
-  # per-pool EBS volumes via these APIs. DescribeVolumes is read-only
-  # and must be wildcard; the mutating operations could be tightened with
-  # a tag condition once the Horde:DataVolumePool tag is in use.
+  # strategy. The Horde server creates, attaches, detaches, snapshots,
+  # rotates, and tags per-pool EBS volumes via these APIs. Snapshot perms
+  # are required by the snapshot-on-detach rotation flow (cost-saving:
+  # converts always-billed gp3 storage into changed-block snapshot
+  # storage between runs). DescribeVolumes / DescribeSnapshots are
+  # read-only and must be wildcard; the mutating operations could be
+  # tightened with an aws:ResourceTag/Horde:DataVolumePool condition.
   statement {
     effect = "Allow"
     actions = [
       "ec2:DescribeVolumes",
       "ec2:CreateVolume",
+      "ec2:DeleteVolume",
       "ec2:AttachVolume",
       "ec2:DetachVolume",
+      "ec2:DescribeSnapshots",
+      "ec2:CreateSnapshot",
+      "ec2:DeleteSnapshot",
       "ec2:CreateTags",
       "ec2:DeleteTags",
     ]
