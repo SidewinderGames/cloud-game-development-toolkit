@@ -63,9 +63,9 @@ variable "horde_image_tag" {
 }
 
 variable "horde_data_volume_size" {
-  description = "Size in GiB of the Horde data EBS volume (Mongo, Redis, server state)."
+  description = "Size in GiB of the gp3 data EBS holding Mongo, Redis, and Horde server-side state. With artifacts + logs on S3 the working set is sub-GB; 20 leaves comfortable headroom while keeping cost trivial (~$1.60/mo)."
   type        = number
-  default     = 100
+  default     = 20
 }
 
 variable "agent_ami_id" {

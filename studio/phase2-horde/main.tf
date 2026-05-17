@@ -41,10 +41,10 @@ module "horde" {
   # records, schedules) survives host rebuilds. The 30 GB root disk would
   # hold the data fine, but env-hash replace_triggered_by recreates the
   # instance on every meaningful IaC change and the root EBS goes with it,
-  # which previously wiped the admin account on every deploy. 20 GB is more
-  # than enough since artifacts + logs are routed to S3.
-  create_data_volume     = true
-  horde_data_volume_size = 20
+  # which previously wiped the admin account on every deploy. Size knob is
+  # var.horde_data_volume_size, already wired above (default 20 GiB; ample
+  # since artifacts + logs are routed to S3).
+  create_data_volume = true
 
   enable_unreal_horde_alb_access_logs = false
 
