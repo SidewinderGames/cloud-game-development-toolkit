@@ -446,8 +446,8 @@ variable "agents" {
 
 variable "agent_dotnet_runtime_version" {
   type        = string
-  description = "dotnet-runtime version installed on Linux agents (match your engine release notes)."
-  default     = "6.0"
+  description = "dotnet-runtime version installed on the agent host before HordeAgent.exe is launched. Must match the runtime the HordeAgent zip was published against (check the bundled `Tools/horde-agent` framework). UE 5.7+ agents target .NET 8."
+  default     = "8.0"
 }
 
 variable "fully_qualified_domain_name" {
