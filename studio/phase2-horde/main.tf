@@ -37,11 +37,14 @@ module "horde" {
   create_s3_storage_bucket           = true
   s3_force_destroy                   = false
 
-  # With horde-artifacts and horde-logs routed to S3 (see default.global.json
-  # in the project repo) the host only stores Mongo + Redis + Horde server
-  # runtime state, ~1 GB at single-team scale, so the separate gp3 data EBS is
-  # unnecessary. Drop it and absorb that footprint into the 30 GB root disk.
-  create_data_volume = false
+  # Keep a small data EBS so Mongo state (admin users, job history, agent
+  # records, schedules) survives host rebuilds. The 30 GB root disk would
+  # hold the data fine, but env-hash replace_triggered_by recreates the
+  # instance on every meaningful IaC change and the root EBS goes with it,
+  # which previously wiped the admin account on every deploy. 20 GB is more
+  # than enough since artifacts + logs are routed to S3.
+  create_data_volume     = true
+  horde_data_volume_size = 20
 
   enable_unreal_horde_alb_access_logs = false
 
