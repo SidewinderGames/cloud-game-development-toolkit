@@ -57,9 +57,9 @@ variable "horde_host_instance_type" {
 }
 
 variable "horde_image_tag" {
-  description = "Tag of the Horde Server image in the Sidewinder ECR repository. Bump after pushing a new build (e.g. \"5.7.4-datavol9\")."
+  description = "Tag of the Horde Server image in the Sidewinder ECR repository. Bump after pushing a new build (e.g. \"5.7.4-datavol10\")."
   type        = string
-  default     = "5.7.4-datavol9"
+  default     = "5.7.4-datavol10"
 }
 
 variable "horde_data_volume_size" {
