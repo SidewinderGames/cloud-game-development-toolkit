@@ -112,6 +112,18 @@ Horde__Perforce__0__credentials__ticket=$${P4_PWD}
 EOF
 fi
 
+%{ if p4_trust_bucket != "" ~}
+# Seed the P4 trust file the Horde server's libp4 reads. Without this the
+# server's first FStat against the SSL Perforce server aborts startup with
+# "The authenticity of <ip>:1666 can't be established". The container mounts
+# /var/lib/horde-data/horde at /app/Data, and P4TRUST is set to /app/Data/.p4trust
+# in horde.env, so the file must land at /var/lib/horde-data/horde/.p4trust on
+# the host. Used to ride on the persistent data EBS; with that gone, refetch
+# on every boot from the same S3 location the agents already use.
+aws --region "$REGION" s3 cp s3://${p4_trust_bucket}/agent/.p4trust /var/lib/horde-data/horde/.p4trust
+chmod 644 /var/lib/horde-data/horde/.p4trust
+%{ endif ~}
+
 cat >/etc/horde/docker-compose.yml <<'COMPOSE_EOF'
 ${docker_compose_yaml}
 COMPOSE_EOF

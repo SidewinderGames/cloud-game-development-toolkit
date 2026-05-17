@@ -232,6 +232,16 @@ resource "aws_iam_role_policy_attachment" "unreal_horde_agents_ec2_policy" {
   role       = aws_iam_role.unreal_horde_agent_default_role[0].name
 }
 
+# The Horde server host also needs read access to the trust file in the
+# ansible-playbooks bucket so user-data can seed /var/lib/horde-data/horde/.p4trust
+# on every boot (no persistent data EBS anymore). Reuses the agent S3 policy
+# since it already grants s3:GetObject + ListBucket on this exact bucket.
+resource "aws_iam_role_policy_attachment" "unreal_horde_host_ansible_s3" {
+  count      = length(var.agents) > 0 && var.create_unreal_horde_default_role ? 1 : 0
+  policy_arn = aws_iam_policy.horde_agents_s3_policy[0].arn
+  role       = aws_iam_role.unreal_horde_default_role[0].name
+}
+
 resource "aws_iam_instance_profile" "unreal_horde_agent_instance_profile" {
   count = length(var.agents) > 0 ? 1 : 0
   name  = "${var.project_prefix}-horde-agent-instance-profile"

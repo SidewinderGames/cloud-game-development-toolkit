@@ -95,6 +95,7 @@ resource "aws_instance" "horde_host" {
     mongo_max_cache_gb                = var.mongo_max_cache_gb
     redis_maxmemory                   = var.redis_maxmemory
     mount_data_volume                 = var.create_data_volume
+    p4_trust_bucket                   = local.need_p4_trust && length(var.agents) > 0 ? aws_s3_bucket.ansible_playbooks[0].id : ""
     horde_env_lines                   = join("\n", [for e in local.horde_service_env : "${e.name}=${e.value}"])
     docker_compose_yaml = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
       horde_image        = var.image
