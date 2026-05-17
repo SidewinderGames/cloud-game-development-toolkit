@@ -95,8 +95,20 @@ variable "horde_host_ami_id" {
 
 variable "horde_data_volume_size" {
   type        = number
-  description = "Size in GiB of the EBS gp3 volume holding Mongo, Redis, and Horde server-side state."
+  description = "Size in GiB of the EBS gp3 volume holding Mongo, Redis, and Horde server-side state. Only used when create_data_volume = true."
   default     = 100
+}
+
+variable "create_data_volume" {
+  type        = bool
+  description = "Create a separate gp3 data EBS for /var/lib/horde-data. Set false to keep Mongo/Redis/state on the root disk; appropriate once artifact + log namespaces are routed to S3 (the only meaningful local consumer is Mongo, which is sub-GB at single-team scale)."
+  default     = true
+}
+
+variable "horde_root_volume_size" {
+  type        = number
+  description = "Size in GiB of the host root EBS. When create_data_volume = false, this absorbs Mongo + Redis + Horde server state; 30 GB has ample headroom for single-team usage with S3-backed artifact/log namespaces."
+  default     = 30
 }
 
 variable "mongo_username" {

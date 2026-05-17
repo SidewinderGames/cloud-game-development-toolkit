@@ -37,6 +37,7 @@ data "aws_subnet" "horde_host" {
 }
 
 resource "aws_ebs_volume" "horde_data" {
+  count             = var.create_data_volume ? 1 : 0
   availability_zone = data.aws_subnet.horde_host.availability_zone
   size              = var.horde_data_volume_size
   type              = "gp3"
@@ -48,8 +49,9 @@ resource "aws_ebs_volume" "horde_data" {
 }
 
 resource "aws_volume_attachment" "horde_data" {
+  count        = var.create_data_volume ? 1 : 0
   device_name  = "/dev/sdf"
-  volume_id    = aws_ebs_volume.horde_data.id
+  volume_id    = aws_ebs_volume.horde_data[0].id
   instance_id  = aws_instance.horde_host.id
   force_detach = true
 }
@@ -66,7 +68,7 @@ resource "aws_instance" "horde_host" {
 
   root_block_device {
     encrypted             = true
-    volume_size           = 30
+    volume_size           = var.horde_root_volume_size
     volume_type           = "gp3"
     delete_on_termination = true
   }
@@ -92,6 +94,7 @@ resource "aws_instance" "horde_host" {
     horde_image                       = var.image
     mongo_max_cache_gb                = var.mongo_max_cache_gb
     redis_maxmemory                   = var.redis_maxmemory
+    mount_data_volume                 = var.create_data_volume
     horde_env_lines                   = join("\n", [for e in local.horde_service_env : "${e.name}=${e.value}"])
     docker_compose_yaml = templatefile("${path.module}/templates/docker-compose.yml.tftpl", {
       horde_image        = var.image

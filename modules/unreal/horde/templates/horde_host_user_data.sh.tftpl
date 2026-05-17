@@ -18,6 +18,7 @@ chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 systemctl enable --now docker
 usermod -aG docker ec2-user
 
+%{ if mount_data_volume ~}
 for i in $(seq 1 60); do
   if [ -b /dev/nvme1n1 ]; then break; fi
   sleep 2
@@ -31,6 +32,12 @@ mkdir -p /var/lib/horde-data
 grep -q '/var/lib/horde-data' /etc/fstab || \
   echo "LABEL=horde-data /var/lib/horde-data xfs defaults,nofail 0 2" >> /etc/fstab
 mount -a
+%{ else ~}
+# No separate data volume - Mongo + Redis + Horde state live on the root disk.
+# Safe once horde-artifacts and horde-logs namespaces are routed to S3 (the only
+# meaningful local consumer is Mongo, which stays well under a GB at this scale).
+mkdir -p /var/lib/horde-data
+%{ endif ~}
 
 mkdir -p /var/lib/horde-data/mongo /var/lib/horde-data/redis /var/lib/horde-data/horde
 chown -R 999:999 /var/lib/horde-data/mongo

@@ -72,20 +72,34 @@ locals {
       name  = "ASPNETCORE_ENVIRONMENT"
       value = var.environment
     },
+    # S3 storage backend override. Horde's StorageServerConfig.Backends is a List,
+    # so the env vars must be indexed (Backends__0__*) and include an Id matching the
+    # backend declared in default.global.json. When the server finds a backend with
+    # this Id in the static config it uses it entirely, ignoring the globals.json
+    # entry (no per-field merge). Bucket name + region come from terraform; credentials
+    # come from the EC2 instance role via the AWS SDK default chain.
     {
-      name  = "Horde__Plugins__Storage__Backend__Type"
+      name  = "Horde__Plugins__Storage__Backends__0__Id"
+      value = var.create_s3_storage_bucket ? "s3-backend" : null
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backends__0__Type"
       value = var.create_s3_storage_bucket ? "Aws" : null
     },
     {
-      name  = "Horde__Plugins__Storage__Backend__AwsBucketName"
+      name  = "Horde__Plugins__Storage__Backends__0__AwsCredentials"
+      value = var.create_s3_storage_bucket ? "Default" : null
+    },
+    {
+      name  = "Horde__Plugins__Storage__Backends__0__AwsBucketName"
       value = var.create_s3_storage_bucket ? aws_s3_bucket.horde_storage[0].id : null
     },
     {
-      name  = "Horde__Plugins__Storage__Backend__AwsBucketPath"
+      name  = "Horde__Plugins__Storage__Backends__0__AwsBucketPath"
       value = var.create_s3_storage_bucket ? "horde/" : null
     },
     {
-      name  = "Horde__Plugins__Storage__Backend__AwsRegion"
+      name  = "Horde__Plugins__Storage__Backends__0__AwsRegion"
       value = var.create_s3_storage_bucket ? data.aws_region.current.id : null
     },
     {
