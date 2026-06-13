@@ -35,7 +35,7 @@ module "horde" {
 
   create_unreal_horde_recycle_policy = true
   create_s3_storage_bucket           = true
-  s3_force_destroy                   = false
+  s3_force_destroy                   = true
 
   # Keep a small data EBS so Mongo state (admin users, job history, agent
   # records, schedules) survives host rebuilds. The 30 GB root disk would
