@@ -22,7 +22,10 @@ data "aws_security_group" "p4_user_access" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "agent_to_p4" {
-  count = module.horde.agent_security_group_id == null ? 0 : 1
+  # Literal count for teardown: a module-output-gated count reads as unknown
+  # during a full destroy, which OpenTofu rejects ("Invalid count argument").
+  # The rule exists in state, so 1 is correct.
+  count = 1
 
   security_group_id            = data.aws_security_group.p4_user_access.id
   referenced_security_group_id = module.horde.agent_security_group_id
